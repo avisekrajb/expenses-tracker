@@ -80,7 +80,7 @@ export default function NotificationSettings() {
         <b>🔔 Device notifications</b>
         <span className={"ex-badge" + (subscribed ? " ok" : "")}>{subscribed ? "On" : "Off"}</span>
       </div>
-      <small>Get budget alerts, overdue loan reminders and recurring expense nudges — even when this tab is closed.</small>
+      <small>Get admin announcements, budget alerts, overdue loan reminders and recurring expense nudges — even when this tab is closed.</small>
       <div className="ex-notify-status">
         <span>Browser permission</span><b>{perm}</b>
       </div>

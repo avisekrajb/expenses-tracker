@@ -7,6 +7,7 @@ const BASE = process.env.BASE || "http://localhost:5055";
 const email = `test_${Date.now()}@kharcha.test`;
 const password = "testpass123";
 let token = "";
+const announcementIds = [];
 let pass = 0;
 let fail = 0;
 
@@ -216,7 +217,7 @@ ok(r.status === 200 && r.data?.photo === null, "DELETE /api/users/me/photo");
 const mainToken = token;
 
 r = await req("GET", "/api/config");
-ok(r.status === 200 && r.data?.app === "Kharcha" && r.data?.version === "2.1.0", "GET /api/config (public)", JSON.stringify(r.data));
+ok(r.status === 200 && r.data?.app === "Kharcha" && r.data?.version === "2.2.0", "GET /api/config (public)", JSON.stringify(r.data));
 ok(r.data?.push?.enabled === true && Boolean(r.data?.push?.publicKey), "config advertises Web Push keys");
 ok(typeof r.data?.donations?.esewaId === "string" && Boolean(r.data?.contact?.email), "config exposes donation + contact details");
 ok(Object.keys(r.data?.features || {}).length === 12 && r.data?.features?.expenses === true,
@@ -330,6 +331,36 @@ if (adminEmail && adminPassword) {
   r = await req("GET", "/api/features/mine");
   ok(r.status === 200 && r.data?.isAdmin === false && r.data?.features?.expenses === true, "GET /api/features/mine for a normal user");
 
+  // Admin announcements: text, photo, read state and the notification page feed.
+  r = await req("POST", "/api/admin/announcements", { title: "E2E update", message: "Hello from admin" }, ah);
+  ok(r.status === 201 && r.data?.url === "/#/notifications" && Boolean(r.data?.id), "admin sends a text notification", JSON.stringify(r.data));
+  const noticeId = r.data?.id;
+  announcementIds.push(noticeId);
+  r = await req("POST", "/api/admin/announcements", { title: "E2E photo", imageUrl: "https://example.test/notice.png" }, ah);
+  ok(r.status === 201 && r.data?.image?.url === "https://example.test/notice.png", "admin sends a photo notification", JSON.stringify(r.data));
+  const photoNoticeId = r.data?.id;
+  announcementIds.push(photoNoticeId);
+  r = await req("POST", "/api/admin/announcements", {}, ah);
+  ok(r.status === 400, "empty notification rejected");
+  r = await req("POST", "/api/admin/announcements", { message: "not allowed" });
+  ok(r.status === 403, "normal users cannot publish notifications");
+  r = await req("GET", "/api/notifications/announcements");
+  ok(r.status === 200 && r.data?.some((x) => x.id === noticeId && x.read === false), "user sees unread notifications");
+  r = await req("GET", "/api/notifications/announcements/unread-count");
+  ok(r.status === 200 && r.data?.count >= 2, "unread count includes new notifications", JSON.stringify(r.data));
+  r = await req("POST", `/api/notifications/announcements/${noticeId}/read`);
+  ok(r.status === 200 && r.data?.read === true, "user marks one notification read");
+  r = await req("POST", "/api/notifications/announcements/read-all");
+  ok(r.status === 200 && r.data?.ok === true, "user marks all notifications read");
+  r = await req("GET", "/api/notifications/announcements/unread-count");
+  ok(r.data?.count === 0, "unread count clears after read-all", JSON.stringify(r.data));
+  r = await req("DELETE", `/api/admin/announcements/${photoNoticeId}`, undefined, ah);
+  ok(r.status === 200 && r.data?.ok === true, "admin removes a notification");
+  r = await req("PUT", "/api/admin/settings", { features: { notifications: false } }, ah);
+  r = await req("POST", "/api/admin/announcements", { message: "blocked while off" }, ah);
+  ok(r.status === 403, "disabled notifications block publishing");
+  r = await req("PUT", "/api/admin/settings", { features: { notifications: true } }, ah);
+
   r = await req("POST", "/api/features/request", { feature: "expenses", note: "Please re-enable" });
   ok(r.status === 201 && r.data?.request?.status === "pending", "POST /api/features/request", JSON.stringify(r.data));
   r = await req("POST", "/api/features/request", { feature: "not-a-feature" });
@@ -387,11 +418,20 @@ if (adminEmail && adminPassword) {
   r = await req("GET", "/api/contact/details");
   ok(r.status === 200 && typeof r.data?.email === "string", "GET /api/contact/details");
   r = await req("PUT", "/api/admin/settings", {
+    donations: { upiId: "test@upi", phone: "9800000000", qrUrl: "https://example.test/qr.png" },
+  }, ah);
+  ok(r.status === 200 && r.data?.donations?.upiId === "test@upi" && r.data?.donations?.phone === "9800000000",
+    "admin can manage UPI ID, payment phone and QR URL", JSON.stringify(r.data?.donations));
+  r = await req("GET", "/api/config");
+  ok(r.status === 200 && r.data?.donations?.upiId === "test@upi" && r.data?.donations?.qrUrl === "https://example.test/qr.png",
+    "public config exposes the updated donation details", JSON.stringify(r.data?.donations));
+  r = await req("PUT", "/api/admin/settings", {
     contact: { email: "hello@kharcha.app" },
     footer: { copyright: `© ${new Date().getFullYear()} Kharcha. Built with care in Nepal.` },
     features: { expenses: true },
   }, ah);
   ok(r.status === 200 && r.data?.contact?.email === "hello@kharcha.app", "admin can edit footer/contact details");
+  await req("PUT", "/api/admin/settings", { donations: { upiId: "", phone: "", qrUrl: "" } }, ah);
   token = mainToken;
 }
 
@@ -409,6 +449,7 @@ try {
   const FeatureRequest = (await import("../src/models/FeatureRequest.js")).default;
   const FeatureOverride = (await import("../src/models/FeatureOverride.js")).default;
   const ContactMessage = (await import("../src/models/ContactMessage.js")).default;
+  const Announcement = (await import("../src/models/Announcement.js")).default;
   const users = await User.find({ email: { $in: [email, twofaEmail] } });
   const ids = users.map((u) => u._id);
   if (ids.length) {
@@ -423,6 +464,8 @@ try {
     await User.deleteMany({ _id: { $in: ids } });
   }
   await ContactMessage.deleteMany({ email: "fan@example.com" });
+  const cleanAnnouncements = announcementIds.filter(Boolean);
+  if (cleanAnnouncements.length) await Announcement.deleteMany({ _id: { $in: cleanAnnouncements } });
   await mongoose.disconnect();
   console.log("  cleanup  test users and data removed");
 } catch (e) {

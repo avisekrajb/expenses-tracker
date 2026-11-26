@@ -3,6 +3,7 @@ import { env } from "../config/env.js";
 import { DEFAULT_FEATURES, FEATURE_KEYS } from "../config/features.js";
 
 const clean = (value, max = 500) => String(value ?? "").trim().slice(0, max);
+const donationLimit = (key) => (key === "qrUrl" ? 100000 : 1000);
 
 export async function getSettings() {
   let doc = await SiteSettings.findOne({ key: "site" }).lean();
@@ -21,7 +22,7 @@ export async function getSettings() {
 
   // Database values win; environment values are the fallback until an admin edits them.
   const donations = Object.fromEntries(
-    Object.keys(env.donation).map((key) => [key, clean(doc.donations?.[key], 1000) || env.donation[key] || ""])
+    Object.keys(env.donation).map((key) => [key, clean(doc.donations?.[key], donationLimit(key)) || env.donation[key] || ""])
   );
 
   return {
@@ -60,7 +61,7 @@ export async function updateSettings(patch = {}) {
       .map((l) => ({ label: clean(l.label, 60), url: clean(l.url, 500) }));
   }
   for (const key of Object.keys(env.donation)) {
-    if (key in (patch.donations || {})) $set[`donations.${key}`] = clean(patch.donations[key], 1000);
+    if (key in (patch.donations || {})) $set[`donations.${key}`] = clean(patch.donations[key], donationLimit(key));
   }
   if (patch.features && typeof patch.features === "object") {
     for (const key of FEATURE_KEYS) {
@@ -81,6 +82,25 @@ export async function saveLogo(logo) {
   await SiteSettings.findOneAndUpdate(
     { key: "site" },
     { $set: { logoUrl: logo.url, logoPublicId: logo.publicId || "" }, $setOnInsert: { key: "site" } },
+    { new: true, upsert: true, setDefaultsOnInsert: true }
+  );
+  return getSettings();
+}
+
+export async function donationQrPublicId() {
+  const doc = await SiteSettings.findOne({ key: "site" }).lean();
+  return clean(doc?.donations?.qrPublicId, 200);
+}
+
+// QR images can be uploaded by the admin; Cloudinary is used when configured,
+// otherwise the image is stored inline so the feature still works locally.
+export async function saveDonationQr(qr) {
+  await SiteSettings.findOneAndUpdate(
+    { key: "site" },
+    {
+      $set: { "donations.qrUrl": clean(qr.url, 100000), "donations.qrPublicId": clean(qr.publicId, 200) },
+      $setOnInsert: { key: "site" },
+    },
     { new: true, upsert: true, setDefaultsOnInsert: true }
   );
   return getSettings();

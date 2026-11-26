@@ -12,14 +12,15 @@ const FEATURE_LABELS = {
 };
 const DONATION_FIELDS = [
   ["esewaId", "eSewa ID"], ["esewaName", "eSewa account name"],
+  ["upiId", "UPI ID"], ["phone", "Payment contact number"],
   ["bankName", "Bank name"], ["bankAccount", "Bank account"],
   ["bankBranch", "Bank branch"], ["bankSwift", "SWIFT / IFSC"],
   ["qrUrl", "QR image URL"], ["note", "Public note"],
 ];
-const TABS = ["Overview", "Content", "Features", "Requests", "Donations", "Messages"];
+const TABS = ["Overview", "Content", "Features", "Requests", "Notifications", "Donations", "Messages"];
 const TAB_ICONS = {
   Overview: "⌂", Content: "✎", Features: "⚡",
-  Requests: "📨", Donations: "💛", Messages: "✉️",
+  Requests: "📨", Notifications: "🔔", Donations: "💛", Messages: "✉️",
 };
 
 function Row({ label, children }) {
@@ -38,6 +39,10 @@ export default function AdminApp() {
   const [overrides, setOverrides] = useState([]);
   const [donations, setDonations] = useState(null);
   const [messages, setMessages] = useState([]);
+  const [announcements, setAnnouncements] = useState([]);
+  const [notice, setNotice] = useState({ title: "Kharcha update", message: "" });
+  const [noticeImage, setNoticeImage] = useState(null);
+  const [noticePreview, setNoticePreview] = useState("");
   const [neon, setNeon] = useState(false);
 
   useEffect(() => {
@@ -45,18 +50,31 @@ export default function AdminApp() {
     return () => window.clearTimeout(timer);
   }, []);
 
+  useEffect(() => {
+    if (!noticeImage) { setNoticePreview(""); return; }
+    const url = URL.createObjectURL(noticeImage);
+    setNoticePreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [noticeImage]);
+
   const goHome = () => {
     window.history.replaceState(null, "", "/");
     window.dispatchEvent(new Event("routechange"));
   };
 
+  // Every section change starts at the top, including the mobile bottom dock.
+  const switchTab = (next) => {
+    setTab(next);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const load = async () => {
     if (!user?.isAdmin) return;
     try {
-      const [s, r, o, d, m] = await Promise.all([
-        admin.settings(), admin.requests(), admin.overrides(), admin.donations(), admin.messages(),
+      const [s, r, o, d, m, a] = await Promise.all([
+        admin.settings(), admin.requests(), admin.overrides(), admin.donations(), admin.messages(), admin.announcements(),
       ]);
-      setSettings(s); setRequests(r); setOverrides(o); setDonations(d); setMessages(m);
+      setSettings(s); setRequests(r); setOverrides(o); setDonations(d); setMessages(m); setAnnouncements(a);
     } catch (e) { setMsg(e.message); }
   };
 
@@ -71,11 +89,34 @@ export default function AdminApp() {
       refreshConfig();
       refreshFeatures();
       window.dispatchEvent(new Event("features:changed"));
+      window.dispatchEvent(new Event("announcements:changed"));
     } catch (e) { setMsg(e.message); }
     setBusy(false);
   };
 
   const saveSetting = (patch) => run(() => admin.saveSettings(patch).then(setSettings), "Settings saved.");
+  const notificationsOn = settings?.features?.notifications !== false;
+
+  const sendNotice = async (e) => {
+    e.preventDefault();
+    if (!notice.message.trim() && !noticeImage) return setMsg("Add a message, a photo, or both.");
+    setBusy(true); setMsg("");
+    try {
+      const form = new FormData();
+      form.append("title", notice.title.trim() || "Kharcha update");
+      form.append("message", notice.message.trim());
+      if (noticeImage) form.append("image", noticeImage);
+      const result = await admin.sendAnnouncement(form);
+      setMsg(result.disabled
+        ? `Saved for the notification page. Push is not configured (${result.sent} device(s) reached).`
+        : `Sent to ${result.sent} device(s).`);
+      setNotice({ title: "Kharcha update", message: "" });
+      setNoticeImage(null);
+      await load();
+      window.dispatchEvent(new Event("announcements:changed"));
+    } catch (e) { setMsg(e.message); }
+    setBusy(false);
+  };
 
   if (!user) {
     return (
@@ -125,32 +166,32 @@ export default function AdminApp() {
             <span className="ad-mobile-live"><i />Live</span>
           </div>
           <div className="ad-mobile-stats">
-            <button onClick={() => setTab("Requests")}>
+            <button onClick={() => switchTab("Requests")}>
               <b>{requests.filter((r) => r.status === "pending").length}</b><small>Requests</small>
             </button>
-            <button onClick={() => setTab("Features")}>
+            <button onClick={() => switchTab("Features")}>
               <b>{overrides.length}</b><small>User grants</small>
             </button>
-            <button onClick={() => setTab("Donations")}>
+            <button onClick={() => switchTab("Donations")}>
               <b>{donations?.pendingCount ?? 0}</b><small>To verify</small>
             </button>
-            <button onClick={() => setTab("Messages")}>
+            <button onClick={() => switchTab("Messages")}>
               <b>{messages.filter((m) => m.status === "new").length}</b><small>Messages</small>
+            </button>
+            <button onClick={() => switchTab("Notifications")}>
+              <b>{announcements.length}</b><small>Notices</small>
             </button>
           </div>
         </section>
 
         <nav className="ad-tabs" aria-label="Admin sections">
           {TABS.map((t) => (
-            <button key={t} className={tab === t ? "on" : ""} onClick={() => setTab(t)}>{t}</button>
+            <button key={t} className={tab === t ? "on" : ""} onClick={() => switchTab(t)}>{t}</button>
           ))}
         </nav>
-        <nav className="ad-mobile-tabs" aria-label="Admin sections">
+        <nav className={"ad-mobile-tabs" + (neon ? " neon" : "")} aria-label="Admin sections">
           {TABS.map((t) => (
-            <button key={t} className={tab === t ? "on" : ""} onClick={() => {
-              setTab(t);
-              window.scrollTo({ top: 0, behavior: "smooth" });
-            }}>
+            <button key={t} className={tab === t ? "on" : ""} onClick={() => switchTab(t)}>
               <span>{TAB_ICONS[t]}</span><small>{t}</small>
             </button>
           ))}
@@ -166,6 +207,7 @@ export default function AdminApp() {
               <div><b>{overrides.length}</b><small>user grants</small></div>
               <div><b>{donations?.pendingCount ?? 0}</b><small>donations to review</small></div>
               <div><b>{messages.filter((m) => m.status === "new").length}</b><small>new messages</small></div>
+              <div><b>{announcements.length}</b><small>notifications sent</small></div>
             </div>
           </section>
         )}
@@ -231,6 +273,19 @@ export default function AdminApp() {
                 </Row>
               ))}
             </div>
+            <div className="ad-qr-row">
+              <div className="ad-qr-preview">
+                {settings.donations.qrUrl ? <img src={settings.donations.qrUrl} alt="Donation QR code" /> : <span>QR</span>}
+              </div>
+              <div>
+                <b>Scan & pay QR</b>
+                <small>Upload a QR image or paste its URL above. It appears on the public Donate page.</small>
+                <input type="file" accept="image/*" disabled={busy} onChange={(e) => {
+                  const f = e.target.files?.[0]; e.target.value = "";
+                  if (f) run(() => admin.saveDonationQr(f).then(setSettings), "QR uploaded.");
+                }} />
+              </div>
+            </div>
           </section>
         )}
 
@@ -282,6 +337,55 @@ export default function AdminApp() {
                           onClick={() => run(() => admin.reviewRequest(r.id, "rejected"), "Request rejected.")}>Reject</button>
                       </div>
                     )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+
+        {tab === "Notifications" && (
+          <section className="ad-card">
+            <h2>Push notifications</h2>
+            <p className="ad-muted">Send text, a photo, or both. Every signed-in user sees it on the notification page; subscribed devices also get a push. Tapping the push opens that page.</p>
+            {!notificationsOn && <div className="ad-alert">Device notifications are switched off in Features. Turn them on before publishing.</div>}
+            <form className="ad-notice-form" onSubmit={sendNotice}>
+              <div className="ad-grid">
+                <Row label="Title">
+                  <input value={notice.title} maxLength={120} onChange={(e) => setNotice({ ...notice, title: e.target.value })} />
+                </Row>
+                <Row label="Photo (optional)">
+                  <input type="file" accept="image/*" onChange={(e) => { setNoticeImage(e.target.files?.[0] || null); e.target.value = ""; }} />
+                </Row>
+              </div>
+              {noticePreview && (
+                <div className="ad-notice-preview">
+                  <img src={noticePreview} alt="Notification preview" />
+                  <button type="button" className="pub-btn tiny ghost" onClick={() => setNoticeImage(null)}>Remove photo</button>
+                </div>
+              )}
+              <Row label="Message (optional when a photo is attached)">
+                <textarea rows={3} maxLength={2000} value={notice.message} placeholder="Write a short update for your users…"
+                  onChange={(e) => setNotice({ ...notice, message: e.target.value })} />
+              </Row>
+              <button className="pub-btn" type="submit" disabled={busy || !notificationsOn}>
+                {busy ? "Sending…" : "Send notification"}
+              </button>
+            </form>
+
+            <h3>Sent notifications</h3>
+            {announcements.length === 0 ? <p className="ad-muted">Nothing sent yet.</p> : (
+              <div className="ad-notice-list">
+                {announcements.map((n) => (
+                  <div key={n.id} className="ad-notice-row">
+                    {n.image?.url && <img src={n.image.url} alt="" />}
+                    <div>
+                      <b>{n.title}</b>
+                      <small>{new Date(n.createdAt).toLocaleString()} · {n.readCount || 0} read · {n.createdBy?.email || "Admin"}</small>
+                      <p>{n.message || "Photo notification"}</p>
+                    </div>
+                    <button type="button" disabled={busy || !notificationsOn}
+                      onClick={() => run(() => admin.deleteAnnouncement(n.id), "Notification deleted.")}>Delete</button>
                   </div>
                 ))}
               </div>

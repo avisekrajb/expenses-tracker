@@ -1,4 +1,5 @@
 import React from "react";
+import { SERVICE_FAQS } from "../utils/seo";
 
 const GROUPS = [
   {
@@ -64,6 +65,20 @@ export default function Services({ go }) {
               ))}
             </article>
           ))}
+        </div>
+      </section>
+      <section className="pub-section pub-faq-section">
+        <div className="pub-wrap">
+          <span className="pub-kicker">Good to know</span>
+          <h2>Frequently asked questions</h2>
+          <div className="pub-faq-list">
+            {SERVICE_FAQS.map((item) => (
+              <article className="pub-faq" key={item.q}>
+                <h3>{item.q}</h3>
+                <p>{item.a}</p>
+              </article>
+            ))}
+          </div>
         </div>
       </section>
     </>

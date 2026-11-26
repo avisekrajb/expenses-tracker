@@ -6,7 +6,7 @@ import ContactMessage from "../models/ContactMessage.js";
 import { FEATURES } from "../config/features.js";
 import { asyncHandler, HttpError } from "../middleware/error.js";
 import { uploadImage, destroyImage } from "../config/cloudinary.js";
-import { getSettings, updateSettings, saveLogo } from "../services/siteSettings.js";
+import { getSettings, updateSettings, saveLogo, donationQrPublicId, saveDonationQr } from "../services/siteSettings.js";
 
 export const session = asyncHandler(async (req, res) => {
   res.json({ ok: true, email: req.admin.email, catalog: FEATURES });
@@ -39,6 +39,32 @@ export const logo = asyncHandler(async (req, res) => {
   }
   const previousId = current.logoPublicId;
   const saved = await saveLogo(uploaded);
+  if (previousId && uploaded.publicId && previousId !== uploaded.publicId) {
+    await destroyImage(previousId).catch(() => {});
+  }
+  res.json(saved);
+});
+
+// POST /api/admin/donation-qr (multipart "qr"), or JSON { qrUrl }.
+export const donationQr = asyncHandler(async (req, res) => {
+  const previousId = await donationQrPublicId();
+  let uploaded = null;
+  if (req.file) {
+    uploaded = await uploadImage(req.file.buffer, "kharcha/donations/qr");
+    if (!uploaded) {
+      uploaded = {
+        url: `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`,
+        publicId: null,
+      };
+    }
+  } else if (typeof req.body?.qrUrl === "string") {
+    const url = req.body.qrUrl.trim();
+    if (!/^(https?:\/\/|data:image\/)/.test(url)) throw new HttpError(400, "Enter a valid QR image URL.");
+    uploaded = { url: url.slice(0, 100000), publicId: "" };
+  } else {
+    throw new HttpError(400, "Choose a QR image.");
+  }
+  const saved = await saveDonationQr(uploaded);
   if (previousId && uploaded.publicId && previousId !== uploaded.publicId) {
     await destroyImage(previousId).catch(() => {});
   }

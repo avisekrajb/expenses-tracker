@@ -15,6 +15,11 @@ export const admin = {
     fd.append("logo", file);
     return api.post("/admin/logo", fd).then((r) => r.data);
   },
+  saveDonationQr: (file) => {
+    const fd = new FormData();
+    fd.append("qr", file);
+    return api.post("/admin/donation-qr", fd).then((r) => r.data);
+  },
   requests: () => api.get("/admin/requests").then((r) => r.data),
   reviewRequest: (id, status) => api.post(`/admin/requests/${id}/review`, { status }).then((r) => r.data),
   overrides: () => api.get("/admin/overrides").then((r) => r.data),
@@ -25,4 +30,7 @@ export const admin = {
   messages: () => api.get("/admin/messages").then((r) => r.data),
   reviewMessage: (id, status) => api.post(`/admin/messages/${id}/review`, { status }).then((r) => r.data),
   deleteMessage: (id) => api.delete(`/admin/messages/${id}`).then((r) => r.data),
+  announcements: () => api.get("/admin/announcements").then((r) => r.data),
+  sendAnnouncement: (form) => api.post("/admin/announcements", form).then((r) => r.data),
+  deleteAnnouncement: (id) => api.delete(`/admin/announcements/${id}`).then((r) => r.data),
 };

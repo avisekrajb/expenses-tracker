@@ -90,6 +90,7 @@ export default function Donate({ go }) {
               <h3>How would you like to give?</h3>
               <div className="pub-methods">
                 <button type="button" className={method === "esewa" ? "on" : ""} onClick={() => setMethod("esewa")}>📱 eSewa</button>
+                <button type="button" className={method === "upi" ? "on" : ""} onClick={() => setMethod("upi")}>💳 UPI</button>
                 <button type="button" className={method === "bank" ? "on" : ""} onClick={() => setMethod("bank")}>🏦 Bank transfer</button>
                 <button type="button" className={method === "other" ? "on" : ""} onClick={() => setMethod("other")}>✨ Other</button>
               </div>
@@ -98,7 +99,7 @@ export default function Donate({ go }) {
               <label>Note (optional)<input value={note} onChange={(e) => setNote(e.target.value)} placeholder="A few kind words…" maxLength="200" /></label>
               <button className="pub-btn" disabled={busy} type="submit">{busy ? "Saving…" : user ? "Record my pledge ✓" : "Log in to record your pledge"}</button>
               {msg && <div className="pub-note">{msg}</div>}
-              <small>Complete the payment in your eSewa or banking app, take a screenshot, then record it here. An admin verifies it before it appears in the public total.</small>
+              <small>Complete the payment in your eSewa, UPI or banking app, take a screenshot, then record it here. An admin verifies it before it appears in the public total.</small>
 
               {user && pledges.length > 0 && (
                 <div className="pub-pledges">
@@ -114,14 +115,28 @@ export default function Donate({ go }) {
             </form>
 
             <aside className="pub-donate-details">
-              {placeholder && <div className="pub-warning">⚠️ These are placeholder details. The admin can set the real eSewa/bank values in the admin console before collecting money.</div>}
+              {placeholder && <div className="pub-warning">⚠️ These are placeholder details. The admin can set the real payment values and upload a QR in the admin console before collecting money.</div>}
+              {d.qrUrl && (
+                <div className="pub-card pub-qr-card">
+                  <h2>🔳 Scan & pay</h2>
+                  <p>Open your payment app, scan this QR, then record your pledge below.</p>
+                  <img className="pub-qr" src={d.qrUrl} alt="Kharcha donation QR code" />
+                </div>
+              )}
               {method === "esewa" && (
                 <div className="pub-card">
                   <h2>📱 Donate with eSewa</h2>
                   <p>Send money to this ID from your eSewa app, then record your pledge here.</p>
                   <CopyRow label="eSewa ID" value={d.esewaId} />
                   <CopyRow label="Account name" value={d.esewaName} />
-                  {d.qrUrl && <img className="pub-qr" src={d.qrUrl} alt="eSewa donation QR code" />}
+                </div>
+              )}
+              {method === "upi" && (
+                <div className="pub-card">
+                  <h2>💳 Donate with UPI</h2>
+                  <p>Pay from any UPI app, then record your pledge here.</p>
+                  <CopyRow label="UPI ID" value={d.upiId} />
+                  <CopyRow label="Payment contact" value={d.phone} />
                 </div>
               )}
               {method === "bank" && (
@@ -132,16 +147,18 @@ export default function Donate({ go }) {
                   <CopyRow label="Account number" value={d.bankAccount} />
                   <CopyRow label="Branch" value={d.bankBranch} />
                   <CopyRow label="SWIFT / IFSC" value={d.bankSwift} />
+                  <CopyRow label="Payment contact" value={d.phone} />
                 </div>
               )}
               {method === "other" && (
                 <div className="pub-card">
                   <h2>✨ Other ways to help</h2>
                   <p>Hand-deliver supplies, volunteer your time, or contact us for a custom arrangement.</p>
+                  <CopyRow label="Payment contact" value={d.phone} />
                   <a href="/contact" onClick={(e) => { e.preventDefault(); go("/contact")(e); }} className="pub-btn ghost">Contact us →</a>
                 </div>
               )}
-              <div className="pub-note">Kharcha does not process payments inside the app. Payments happen in your own eSewa or banking app; we only record and verify pledges.</div>
+              <div className="pub-note">Kharcha does not process payments inside the app. Payments happen in your own payment app; we only record and verify pledges.</div>
             </aside>
           </div>
         </FeatureGate>

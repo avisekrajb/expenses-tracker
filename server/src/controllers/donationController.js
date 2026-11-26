@@ -3,7 +3,7 @@ import { asyncHandler, HttpError } from "../middleware/error.js";
 import { round2 } from "../utils/money.js";
 import { uploadImage } from "../config/cloudinary.js";
 
-const METHODS = ["esewa", "bank", "other"];
+const METHODS = ["esewa", "upi", "bank", "other"];
 
 // A payment screenshot is required so the pledge can be verified by an admin.
 // Accepts multipart ("screenshot") or JSON { screenshotUrl } from a prior upload.

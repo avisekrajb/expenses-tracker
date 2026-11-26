@@ -34,6 +34,8 @@ export const env = {
   donation: {
     esewaId: process.env.DONATION_ESEWA_ID || "",
     esewaName: process.env.DONATION_ESEWA_NAME || "",
+    upiId: process.env.DONATION_UPI_ID || "",
+    phone: process.env.DONATION_PHONE || "",
     bankName: process.env.DONATION_BANK_NAME || "",
     bankAccount: process.env.DONATION_BANK_ACCOUNT || "",
     bankBranch: process.env.DONATION_BANK_BRANCH || "",

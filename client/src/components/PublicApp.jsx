@@ -72,7 +72,10 @@ export default function PublicApp() {
       const next = normalize(window.location.pathname);
       setRoute(next);
       setOpen(false);
-      if (!isAuthRoute(next)) setPageRoute(next);
+      if (!isAuthRoute(next)) {
+        setPageRoute(next);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
     };
     window.addEventListener("popstate", sync);
     window.addEventListener("routechange", sync);

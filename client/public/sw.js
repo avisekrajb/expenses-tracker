@@ -1,5 +1,5 @@
 /* Kharcha service worker: offline app shell + Web Push notifications. */
-const CACHE = "kharcha-v2";
+const CACHE = "kharcha-v4";
 const SHELL = ["/", "/index.html", "/manifest.json", "/favicon.ico", "/icons/icon-192.png", "/icons/icon-512.png"];
 
 self.addEventListener("install", (event) => {
@@ -44,21 +44,27 @@ self.addEventListener("push", (event) => {
   try { if (event.data) data = { ...data, ...event.data.json() }; }
   catch { if (event.data) data.body = event.data.text(); }
 
-  event.waitUntil(
+  event.waitUntil(Promise.all([
     self.registration.showNotification(data.title, {
       body: data.body,
       icon: "/icons/icon-192.png",
       badge: "/icons/icon-72.png",
+      image: /^https?:\/\//.test(data.image || "") ? data.image : undefined,
       tag: data.tag || "kharcha",
       renotify: true,
       vibrate: [120, 60, 120],
-      data: { url: data.url || "/#/home" },
+      data: { url: data.url || "/#/home", id: data.id || "" },
       actions: [
         { action: "open", title: "Open Kharcha" },
         { action: "dismiss", title: "Dismiss" },
       ],
-    })
-  );
+    }),
+    // Tell any open tab to refresh the bell and notification list immediately.
+    self.clients.matchAll({ type: "window", includeUncontrolled: true })
+      .then((clients) => clients.forEach((client) => {
+        client.postMessage({ type: "kharcha:push", url: data.url || "/#/notifications" });
+      })),
+  ]));
 });
 
 self.addEventListener("notificationclick", (event) => {

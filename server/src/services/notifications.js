@@ -118,3 +118,16 @@ export async function notifyAll() {
   }
   return { users: subs.length, sent };
 }
+
+// Admin announcements go to every device that has a saved push subscription.
+// The in-app list is stored separately, so users without push still see it.
+export async function broadcast(payload, tag) {
+  if (!env.pushEnabled) return { users: 0, sent: 0, disabled: true };
+  const users = await PushSubscription.distinct("userId");
+  let sent = 0;
+  for (const userId of users) {
+    try { sent += await sendToUser(userId, payload, tag); }
+    catch (err) { console.error("announcement push failed:", err.message); }
+  }
+  return { users: users.length, sent };
+}

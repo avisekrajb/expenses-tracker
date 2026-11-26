@@ -8,6 +8,12 @@ export const list = () => api.get("/notifications/subscriptions").then((r) => r.
 export const test = () => api.post("/notifications/test").then((r) => r.data);
 export const check = () => api.post("/notifications/check").then((r) => r.data);
 
+// Admin announcements are visible even when device push is not enabled.
+export const announcements = () => api.get("/notifications/announcements").then((r) => r.data);
+export const unreadCount = () => api.get("/notifications/announcements/unread-count").then((r) => r.data.count);
+export const markRead = (id) => api.post(`/notifications/announcements/${id}/read`).then((r) => r.data);
+export const markAllRead = () => api.post("/notifications/announcements/read-all").then((r) => r.data);
+
 // VAPID keys are base64url; the Push API needs a Uint8Array.
 export const urlBase64ToUint8Array = (key) => {
   const padding = "=".repeat((4 - (key.length % 4)) % 4);

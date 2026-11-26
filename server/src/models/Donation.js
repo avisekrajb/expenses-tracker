@@ -4,7 +4,7 @@ const donationSchema = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
     amount: { type: Number, required: true, min: 1 },
-    method: { type: String, enum: ["esewa", "bank", "other"], default: "esewa" },
+    method: { type: String, enum: ["esewa", "upi", "bank", "other"], default: "esewa" },
     note: { type: String, default: "", maxlength: 200 },
     screenshot: {
       url: { type: String, default: "" },

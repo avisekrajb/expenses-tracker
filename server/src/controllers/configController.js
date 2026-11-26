@@ -10,7 +10,7 @@ export const publicConfig = asyncHandler(async (_req, res) => {
   res.set("Cache-Control", "no-store");
   res.json({
     app: "Kharcha",
-    version: "2.1.0",
+    version: "2.2.0",
     url: "https://kharcha-expense-tracker-ashen.vercel.app",
     siteName: "Kharcha – Kathmandu Expense Tracker",
     push: pushConfig(),

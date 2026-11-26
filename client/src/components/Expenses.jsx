@@ -16,6 +16,8 @@ import AddSheet from "./AddSheet";
 import DeleteSheet from "./DeleteSheet";
 import SplitSheet from "./SplitSheet";
 import FeatureGate from "./FeatureGate";
+import NotificationPage from "./NotificationPage";
+import * as notificationApi from "../services/notifications";
 
 const TABS = [
   ["home", "🏠", "Home"],
@@ -24,17 +26,20 @@ const TABS = [
   ["loans", "🤝", "Give/Take"],
   ["total", "📊", "Total"],
 ];
-const ROUTES = [...TABS, ["profile", "👤", "Profile"]];
+const ROUTES = [...TABS, ["notifications", "🔔", "Notifications"], ["profile", "👤", "Profile"]];
 
 const routeFromHash = () => {
   const key = window.location.hash.replace(/^#\/?/, "").split("?")[0] || "home";
-  return ROUTES.some(([k]) => k === key) ? key : "home";
+  if (key && ROUTES.some(([k]) => k === key)) return key;
+  // /notifications is a shareable alias for the in-app notification page.
+  if (window.location.pathname === "/notifications") return "notifications";
+  return "home";
 };
 
 export default function Expenses() {
   const { user, ready, logout } = useAuth();
   const { dark, toggle } = useTheme();
-  const { can, isAdmin } = useSite();
+  const { can, isAdmin, features } = useSite();
   const [items, setItems] = useState([]);
   const [tab, setTab] = useState(routeFromHash);
   const [menu, setMenu] = useState(false);
@@ -47,7 +52,9 @@ export default function Expenses() {
   const [splitItem, setSplitItem] = useState(null);
   const [splitFriends, setSplitFriends] = useState([]);
   const [toast, setToast] = useState("");
+  const [unread, setUnread] = useState(0);
   const uid = user?.id;
+  const notificationsOn = features?.notifications !== false;
 
   useEffect(() => {
     if (!user?.id) { setNeon(false); return; }
@@ -64,19 +71,57 @@ export default function Expenses() {
 
   // Hash routing keeps the selected section in the URL, so refresh/deep links work.
   useEffect(() => {
-    if (!window.location.hash) {
-      window.history.replaceState(null, "", window.location.pathname + window.location.search + "#/home");
+    if (window.location.pathname === "/notifications") {
+      window.history.replaceState(null, "", "/#/notifications");
+    } else if (!window.location.hash) {
+      const initial = routeFromHash();
+      window.history.replaceState(null, "", window.location.pathname + window.location.search + `#/${initial}`);
     }
-    const sync = () => setTab(routeFromHash());
+    const sync = () => {
+      setTab(routeFromHash());
+      document.querySelector(".ex-body")?.scrollTo({ top: 0, behavior: "smooth" });
+    };
     window.addEventListener("hashchange", sync);
-    return () => window.removeEventListener("hashchange", sync);
+    window.addEventListener("routechange", sync);
+    return () => {
+      window.removeEventListener("hashchange", sync);
+      window.removeEventListener("routechange", sync);
+    };
   }, []);
+
+  const refreshUnread = () => {
+    if (!user?.id || !notificationsOn) { setUnread(0); return Promise.resolve(); }
+    return notificationApi.unreadCount().then(setUnread).catch(() => setUnread(0));
+  };
+
+  // Bell count refreshes on focus and when the admin publishes a new update.
+  useEffect(() => {
+    if (!user?.id || !notificationsOn) { setUnread(0); return; }
+    refreshUnread();
+    const onChanged = () => refreshUnread();
+    const onPush = (event) => {
+      if (event.data?.type !== "kharcha:push") return;
+      refreshUnread();
+      window.dispatchEvent(new Event("announcements:changed"));
+    };
+    window.addEventListener("announcements:changed", onChanged);
+    window.addEventListener("focus", onChanged);
+    navigator.serviceWorker?.addEventListener("message", onPush);
+    const timer = window.setInterval(onChanged, 60000);
+    return () => {
+      window.removeEventListener("announcements:changed", onChanged);
+      window.removeEventListener("focus", onChanged);
+      navigator.serviceWorker?.removeEventListener("message", onPush);
+      window.clearInterval(timer);
+    };
+  }, [user?.id, notificationsOn]);
 
   const go = (key) => {
     const target = `#/${key}`;
     if (window.location.hash !== target) window.location.hash = target;
     else setTab(key);
     setMenu(false);
+    document.querySelector(".ex-body")?.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   useEffect(() => {
@@ -144,6 +189,12 @@ export default function Expenses() {
               </button>
               <div className="ex-topr">
                 <small>{new Date().toLocaleDateString("en", { weekday: "short", day: "numeric", month: "short" })}</small>
+                {notificationsOn && (
+                  <button className="ex-bell" onClick={() => go("notifications")}
+                    aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"}>
+                    🔔{unread > 0 && <i className="ex-bell-count">{unread > 9 ? "9+" : unread}</i>}
+                  </button>
+                )}
                 <button className="ex-theme" onClick={toggle} aria-label="Switch light or dark mode">{dark ? "☀️" : "🌙"}</button>
                 <div className="ex-profile-menu">
                   <button onClick={() => setMenu((v) => !v)} aria-label="Profile menu" aria-expanded={menu}>
@@ -152,6 +203,7 @@ export default function Expenses() {
                   {menu && (
                     <div className="ex-dropdown">
                       <button onClick={() => go("profile")}>👤 My profile</button>
+                      {notificationsOn && <button onClick={() => go("notifications")}>🔔 Notifications{unread ? ` (${unread})` : ""}</button>}
                       {(user?.isAdmin || isAdmin) && <button onClick={() => {
                         setMenu(false);
                         window.history.pushState(null, "", "/admin");
@@ -193,10 +245,15 @@ export default function Expenses() {
                   <Total items={items} days={days} setDays={setDays} />
                 </FeatureGate>
               )}
+              {tab === "notifications" && (
+                <FeatureGate feature="notifications" label="Notifications">
+                  <NotificationPage onChange={refreshUnread} />
+                </FeatureGate>
+              )}
               {tab === "profile" && <Profile items={items} goLoans={() => go("loans")} />}
             </div>
-            {can("expenses") && tab !== "loans" && tab !== "profile" && <button className="ex-fab" onClick={() => setSheet(true)} aria-label="Add expense">＋</button>}
-            <nav className="ex-nav">
+            {can("expenses") && !["loans", "profile", "notifications"].includes(tab) && <button className="ex-fab" onClick={() => setSheet(true)} aria-label="Add expense">＋</button>}
+            <nav className={"ex-nav" + (neon ? " neon" : "")}>
               {TABS.map(([k, i, l]) => (
                 <button key={k} className={tab === k ? "on" : ""} onClick={() => go(k)}>
                   <span>{i}</span><small>{l}</small>
