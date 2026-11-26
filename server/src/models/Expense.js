@@ -8,6 +8,8 @@ const expenseSchema = new mongoose.Schema(
     category: { type: String, required: true, enum: CATS },
     date: { type: String, required: true }, // YYYY-MM-DD (local date of the expense)
     desc: { type: String, default: "", maxlength: 200 },
+    tags: { type: [String], default: [] },
+    recurring: { type: Boolean, default: false },
     // Receipt image URL (Cloudinary) or inline data URL when Cloudinary is not configured.
     receipt: { type: String, default: null },
     receiptPublicId: { type: String, default: null, select: false },

@@ -2,8 +2,13 @@ import mongoose from "mongoose";
 import Loan from "../models/Loan.js";
 import { asyncHandler, HttpError } from "../middleware/error.js";
 import { validateLoan } from "../utils/validate.js";
+import { round2 } from "../utils/money.js";
 
-const r2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
+const r2 = round2;
+const ymdLocal = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
 const checkId = (id) => { if (!mongoose.isValidObjectId(id)) throw new HttpError(400, "Invalid loan id."); };
 
 const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -21,15 +26,22 @@ export const list = asyncHandler(async (req, res) => {
 });
 
 export const summary = asyncHandler(async (req, res) => {
-  const rows = await Loan.aggregate([
-    { $match: { userId: new mongoose.Types.ObjectId(req.userId) } },
-    {
-      $group: {
-        _id: { type: "$type", settled: "$settled" },
-        total: { $sum: "$amount" },
-        count: { $sum: 1 },
+  const uid = new mongoose.Types.ObjectId(req.userId);
+  const [rows, overdue] = await Promise.all([
+    Loan.aggregate([
+      { $match: { userId: uid } },
+      {
+        $group: {
+          _id: { type: "$type", settled: "$settled" },
+          total: { $sum: "$amount" },
+          count: { $sum: 1 },
+        },
       },
-    },
+    ]),
+    Loan.aggregate([
+      { $match: { userId: uid, settled: false, dueDate: { $lt: ymdLocal() } } },
+      { $group: { _id: null, total: { $sum: "$amount" }, count: { $sum: 1 } } },
+    ]),
   ]);
   const find = (type, settled) => rows.find((x) => x._id.type === type && x._id.settled === settled);
   const value = (type, settled) => find(type, settled)?.total || 0;
@@ -42,6 +54,8 @@ export const summary = asyncHandler(async (req, res) => {
     net: r2(toReceive - toPay),
     received: r2(value("given", true)),
     paid: r2(value("taken", true)),
+    overdue: overdue[0]?.count || 0,
+    overdueAmount: r2(overdue[0]?.total || 0),
     counts: {
       toReceive: count("given", false),
       toPay: count("taken", false),

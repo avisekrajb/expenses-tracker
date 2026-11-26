@@ -1,4 +1,6 @@
 /* End-to-end smoke test for the Kharcha API. Run with the server on BASE. */
+import { round2, sumMoney, splitMoney, pct, deltaPct } from "../../client/src/utils/money.js";
+
 const BASE = process.env.BASE || "http://localhost:5055";
 const email = `test_${Date.now()}@kharcha.test`;
 const password = "testpass123";
@@ -35,6 +37,13 @@ const waitForServer = async () => {
   }
   throw new Error("Server did not start");
 };
+
+// Money math (fixed in v1.4: integer paisa, symmetric rounding, exact splits).
+ok(round2(1.005) === 1.01 && round2(-1.005) === -1.01, "money rounding is symmetric");
+ok(sumMoney([0.1, 0.2, 0.3]) === 0.6, "money sums avoid floating-point drift");
+const shares = splitMoney(1000.01, 3);
+ok(sumMoney(shares) === 1000.01 && shares[0] === 333.34, "split shares add up exactly", JSON.stringify(shares));
+ok(pct(1, 0) === 0 && deltaPct(10, 0) === null, "zero denominators are safe");
 
 await waitForServer();
 console.log("Server is up:", BASE);
@@ -89,12 +98,15 @@ r = await req("PUT", `/api/expenses/${expenseId}`, { amount: 300, category: "Eat
 ok(r.status === 200 && r.data?.amount === 300 && r.data?.desc === "Momo + tea", "PUT /api/expenses/:id");
 r = await req("PUT", `/api/expenses/${expenseId}`, { amount: 0, category: "Eating", date: today });
 ok(r.status === 400, "invalid update rejected");
+r = await req("PUT", `/api/expenses/${expenseId}`, { amount: 300, category: "Eating", date: today, desc: "Momo + tea", tags: ["food", "friends", "food"], recurring: true });
+ok(r.status === 200 && r.data?.tags?.length === 2 && r.data?.recurring === true, "tags and recurring saved", JSON.stringify(r.data));
 
 // Summary
 const from = today;
 const to = today;
 r = await req("GET", `/api/expenses/summary?from=${from}&to=${to}`);
 ok(r.status === 200 && r.data?.total === 399 && r.data?.count === 2, "GET /api/expenses/summary", JSON.stringify(r.data));
+ok(r.data?.byTag?.find((t) => t.tag === "food")?.total === 300 && r.data?.recurring?.count === 1, "summary includes tags and recurring", JSON.stringify(r.data));
 r = await req("GET", `/api/expenses/summary?from=${today}&to=2020-01-01`);
 ok(r.status === 400, "summary validates date order");
 
@@ -148,6 +160,14 @@ r = await req("DELETE", `/api/loans/${givenId}`);
 ok(r.status === 200 && r.data?.ok === true, "DELETE /api/loans/:id");
 r = await req("DELETE", `/api/loans/${givenId}`);
 ok(r.status === 404, "delete missing loan -> 404");
+
+const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+r = await req("POST", "/api/loans", { type: "taken", friend: "Late Friend", amount: 75, date: yesterday, dueDate: yesterday });
+const overdueId = r.data?.id;
+r = await req("GET", "/api/loans/summary");
+ok(r.data?.overdue === 1 && r.data?.overdueAmount === 75, "overdue loan counted", JSON.stringify(r.data));
+r = await req("DELETE", `/api/loans/${overdueId}`);
+ok(r.status === 200, "overdue test loan removed");
 
 // Receipt upload (Cloudinary)
 const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");

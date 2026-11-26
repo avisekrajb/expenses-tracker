@@ -5,8 +5,9 @@ import { asyncHandler, HttpError } from "../middleware/error.js";
 import { comparePassword } from "../utils/hashPw.js";
 import { validateExpense, isDate } from "../utils/validate.js";
 import { uploadImage, destroyImage } from "../config/cloudinary.js";
+import { round2, sumMoney } from "../utils/money.js";
 
-const r2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
+const r2 = round2;
 const checkId = (id) => { if (!mongoose.isValidObjectId(id)) throw new HttpError(400, "Invalid expense id."); };
 
 export const list = asyncHandler(async (req, res) => {
@@ -60,15 +61,19 @@ export const summary = asyncHandler(async (req, res) => {
   const { from, to } = req.query;
   if (!isDate(from) || !isDate(to) || from > to) throw new HttpError(400, "Provide valid from and to dates.");
   const match = { userId: new mongoose.Types.ObjectId(req.userId), date: { $gte: from, $lte: to } };
-  const [byDate, byCategory] = await Promise.all([
+  const [byDate, byCategory, byTag, recurring] = await Promise.all([
     Expense.aggregate([{ $match: match }, { $group: { _id: "$date", total: { $sum: "$amount" }, count: { $sum: 1 } } }, { $sort: { _id: 1 } }]),
     Expense.aggregate([{ $match: match }, { $group: { _id: "$category", total: { $sum: "$amount" } } }, { $sort: { total: -1 } }]),
+    Expense.aggregate([{ $match: match }, { $unwind: "$tags" }, { $group: { _id: "$tags", total: { $sum: "$amount" } } }, { $sort: { total: -1 } }]),
+    Expense.aggregate([{ $match: { ...match, recurring: true } }, { $group: { _id: null, total: { $sum: "$amount" }, count: { $sum: 1 } } }]),
   ]);
   res.json({
     from, to,
-    total: r2(byDate.reduce((s, d) => s + d.total, 0)),
+    total: sumMoney(byDate.map((d) => d.total)),
     count: byDate.reduce((s, d) => s + d.count, 0),
     byDate: byDate.map((d) => ({ date: d._id, total: r2(d.total), count: d.count })),
     byCategory: byCategory.map((c) => ({ category: c._id, total: r2(c.total) })),
+    byTag: byTag.map((t) => ({ tag: t._id, total: r2(t.total) })),
+    recurring: { count: recurring[0]?.count || 0, total: r2(recurring[0]?.total || 0) },
   });
 });

@@ -11,6 +11,8 @@ export default function AddSheet({ onClose, onSave, item }) {
   const [category, setCategory] = useState(item?.category || "Eating");
   const [date, setDate] = useState(item?.date || todayStr());
   const [desc, setDesc] = useState(item?.desc || "");
+  const [tags, setTags] = useState((item?.tags || []).join(", "));
+  const [recurring, setRecurring] = useState(item?.recurring === true);
   const [receipt, setReceipt] = useState(item?.receipt || null);
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(item?.receipt || null);
@@ -47,7 +49,11 @@ export default function AddSheet({ onClose, onSave, item }) {
         url = up.url;
         publicId = up.publicId;
       }
-      await onSave({ amount: r2(a), category, date, desc: desc.trim(), receipt: url, receiptPublicId: publicId });
+      await onSave({
+        amount: r2(a), category, date, desc: desc.trim(),
+        tags: tags.split(",").map((t) => t.trim()).filter(Boolean).slice(0, 5),
+        recurring, receipt: url, receiptPublicId: publicId,
+      });
     } catch (e) {
       setErr(e.message);
       setBusy(false);
@@ -72,6 +78,12 @@ export default function AddSheet({ onClose, onSave, item }) {
         </div>
         <input type="date" value={date} max={todayStr()} onChange={(e) => setDate(e.target.value)} />
         <input placeholder="Description (e.g. momo at Thamel)" value={desc} onChange={(e) => setDesc(e.target.value)} />
+        <input placeholder="Tags (comma separated, e.g. lunch, friends)" value={tags}
+          onChange={(e) => setTags(e.target.value)} />
+        <label className="ex-check">
+          <input type="checkbox" checked={recurring} onChange={(e) => setRecurring(e.target.checked)} />
+          <span>Repeat every month</span>
+        </label>
 
         <div className="ex-receipt-row">
           <label className="ex-receipt-pick">

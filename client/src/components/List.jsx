@@ -5,9 +5,10 @@ import { fmt, r2, todayStr } from "../utils/helpers";
 
 const csvCell = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
 
-export default function List({ items, del, edit }) {
+export default function List({ items, del, edit, split }) {
   const [q, setQ] = useState("");
   const [f, setF] = useState("All");
+  const [tag, setTag] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [min, setMin] = useState("");
@@ -21,27 +22,29 @@ export default function List({ items, del, edit }) {
     const hi = max === "" ? null : Number(max);
     return items
       .filter((e) => f === "All" || e.category === f)
+      .filter((e) => !tag || (e.tags || []).includes(tag))
       .filter((e) => !from || e.date >= from)
       .filter((e) => !to || e.date <= to)
       .filter((e) => lo === null || !Number.isFinite(lo) || e.amount >= lo)
       .filter((e) => hi === null || !Number.isFinite(hi) || e.amount <= hi)
-      .filter((e) => !term || `${e.category} ${e.desc || ""}`.toLowerCase().includes(term))
+      .filter((e) => !term || `${e.category} ${e.desc || ""} ${(e.tags || []).join(" ")}`.toLowerCase().includes(term))
       .sort((a, b) => b.date.localeCompare(a.date) || String(b.id).localeCompare(String(a.id)));
-  }, [items, q, f, from, to, min, max]);
+  }, [items, q, f, tag, from, to, min, max]);
 
   const total = r2(shown.reduce((s, e) => s + e.amount, 0));
-  const filtered = Boolean(q || f !== "All" || from || to || min || max);
+  const filtered = Boolean(q || f !== "All" || tag || from || to || min || max);
+  const allTags = [...new Set(items.flatMap((e) => e.tags || []))].sort();
 
   const groups = {};
   shown.forEach((e) => (groups[e.date] = groups[e.date] || []).push(e));
 
-  const clearAll = () => { setQ(""); setF("All"); setFrom(""); setTo(""); setMin(""); setMax(""); };
+  const clearAll = () => { setQ(""); setF("All"); setTag(""); setFrom(""); setTo(""); setMin(""); setMax(""); };
 
   const exportCsv = () => {
     if (!shown.length) return;
     const rows = [
-      ["Date", "Category", "Amount (Rs)", "Description", "Receipt"].map(csvCell).join(","),
-      ...shown.map((e) => [e.date, e.category, e.amount, e.desc, e.receipt || ""].map(csvCell).join(",")),
+      ["Date", "Category", "Amount (Rs)", "Description", "Tags", "Recurring", "Receipt"].map(csvCell).join(","),
+      ...shown.map((e) => [e.date, e.category, e.amount, e.desc, (e.tags || []).join(" "), e.recurring ? "yes" : "", e.receipt || ""].map(csvCell).join(",")),
     ];
     const blob = new Blob(["\ufeff" + rows.join("\r\n")], { type: "text/csv;charset=utf-8;" });
     const a = document.createElement("a");
@@ -86,6 +89,14 @@ export default function List({ items, del, edit }) {
           <button key={n} className={f === n ? "on" : ""} onClick={() => setF(n)}>{n}</button>
         ))}
       </div>
+      {allTags.length > 0 && (
+        <div className="ex-chips ex-tag-chips">
+          <button className={!tag ? "on" : ""} onClick={() => setTag("")}>All tags</button>
+          {allTags.map((t) => (
+            <button key={t} className={tag === t ? "on" : ""} onClick={() => setTag(t)}>#{t}</button>
+          ))}
+        </div>
+      )}
 
       {!shown.length && <Empty />}
       {Object.keys(groups).map((d) => (
@@ -100,9 +111,13 @@ export default function List({ items, del, edit }) {
               <div className="ex-item" key={e.id}>
                 <span style={{ background: c.c + "25" }}>{c.i}</span>
                 <div className="ex-item-main">
-                  <b>{e.category}</b>
+                  <b>{e.category}{e.recurring && <em className="ex-rec"> ↻ monthly</em>}</b>
                   <small>{e.desc || "No description"}</small>
+                  {(e.tags || []).length > 0 && (
+                    <div className="ex-tags">{e.tags.map((t) => <em key={t}>#{t}</em>)}</div>
+                  )}
                   <div className="ex-item-actions">
+                    <button onClick={() => split(e)}>✂️ Split</button>
                     <button onClick={() => edit(e)}>✏️ Edit</button>
                     <button className="danger" onClick={() => del(e.id)}>Delete</button>
                   </div>

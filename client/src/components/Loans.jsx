@@ -7,6 +7,7 @@ const FILTERS = [
   ["all", "All"],
   ["given", "To receive"],
   ["taken", "To pay"],
+  ["overdue", "Overdue"],
   ["settled", "Settled"],
 ];
 
@@ -40,7 +41,10 @@ export default function Loans() {
   const shown = useMemo(() => {
     const term = q.trim().toLowerCase();
     return loans
-      .filter((l) => filter === "all" || (filter === "settled" ? l.settled : l.type === filter && !l.settled))
+      .filter((l) => filter === "all" ||
+        (filter === "settled" ? l.settled :
+          filter === "overdue" ? (!l.settled && Boolean(l.dueDate) && l.dueDate < todayStr()) :
+            l.type === filter && !l.settled))
       .filter((l) => !term || `${l.friend} ${l.note || ""}`.toLowerCase().includes(term));
   }, [loans, q, filter]);
 
@@ -80,7 +84,7 @@ export default function Loans() {
   return (
     <div className="ex-page">
       <header className="ex-between">
-        <div><h2>Give &amp; Take</h2><small>Money with friends</small></div>
+        <div><h2>Give &amp; Take</h2><small>Money with friends{sum.overdue ? ` · ⚠️ ${sum.overdue} overdue` : ""}</small></div>
         <button className="ex-loan-add" onClick={() => setSheet({})}>＋ Add</button>
       </header>
 

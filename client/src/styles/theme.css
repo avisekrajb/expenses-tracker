@@ -45,3 +45,11 @@
 .dark .ex-dropdown button:hover{background:#1f2447}
 .dark .ex-profile-stats>div{background:#1f2447}
 .dark .ex-profile-row{border-color:#262b50}
+
+/* v1.4 dark mode */
+.dark .ex-check,.dark .ex-quick small{color:#9aa0cc}
+.dark .ex-tags em{background:#1f2447;color:#a99dff}
+.dark .ex-split-total,.dark .ex-rec-row{border-color:#262b50}
+.dark .ex-quick button{background:#171b36;box-shadow:0 6px 18px #0006}
+.dark .ex-pace{border-color:#2a2f55}
+.dark .ex-toast{background:#6d5dfc}

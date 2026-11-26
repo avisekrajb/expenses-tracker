@@ -4,8 +4,10 @@ import { useTheme } from "../context/ThemeContext";
 import { resizePhoto } from "../utils/photo";
 import { uploadPhoto, removePhoto } from "../services/upload";
 import { getBudget } from "../services/budgets";
-import { summary as loanSummary } from "../services/loans";
+import { summary as loanSummary, list as loanList } from "../services/loans";
 import { fmt, r2, todayStr } from "../utils/helpers";
+import { sumMoney } from "../utils/money";
+import { CATS } from "../utils/categories";
 
 export default function Profile({ items, goLoans }) {
   const { user, setUser, logout } = useAuth();
@@ -38,13 +40,47 @@ export default function Profile({ items, goLoans }) {
     try { setUser(await removePhoto()); setErr(""); } catch (x) { setErr(x.message); }
   };
 
-  const total = r2(items.reduce((s, e) => s + e.amount, 0));
-  const monthSpent = r2(items.filter((e) => e.date.startsWith(month)).reduce((s, e) => s + e.amount, 0));
+  const total = sumMoney(items.map((e) => e.amount));
+  const monthSpent = sumMoney(items.filter((e) => e.date.startsWith(month)).map((e) => e.amount));
   const activeDays = new Set(items.map((e) => e.date)).size;
   const biggest = r2(items.reduce((m, e) => Math.max(m, e.amount), 0));
   const since = user?.createdAt
     ? new Date(user.createdAt).toLocaleDateString("en", { day: "numeric", month: "short", year: "numeric" })
     : "—";
+
+  // Independent cross-checks: day totals, category totals and loan net must reconcile.
+  const expenseTotal = sumMoney(items.map((e) => e.amount));
+  const byCategory = sumMoney(items.filter((e) => CATS.some((c) => c.n === e.category)).map((e) => e.amount));
+  const byDay = sumMoney([...new Set(items.map((e) => e.date))]
+    .map((d) => sumMoney(items.filter((e) => e.date === d).map((e) => e.amount))));
+  const loanNet = sumMoney([Number(loans?.toReceive) || 0, -(Number(loans?.toPay) || 0)]);
+  const mathOk = expenseTotal === byCategory && expenseTotal === byDay &&
+    Math.abs(loanNet - (Number(loans?.net) || 0)) < 0.005;
+
+  const downloadBackup = async () => {
+    setBusy(true);
+    setErr("");
+    try {
+      const [friends, thisBudget] = await Promise.all([loanList(), getBudget(month)]);
+      const payload = {
+        app: "Kharcha", version: "1.4.0", exportedAt: new Date().toISOString(),
+        user: { name: user?.name, email: user?.email, photo: user?.photo },
+        expenses: items, loans: friends, budget: thisBudget,
+        mathCheck: { expenseTotal, byCategory, byDay, loanNet, ok: mathOk },
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `kharcha-backup-${todayStr()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    } catch (e) {
+      setErr(e.message);
+    }
+    setBusy(false);
+  };
 
   return (
     <div className="ex-page">
@@ -73,6 +109,15 @@ export default function Profile({ items, goLoans }) {
       </div>
 
       <div className="ex-profile-sec">
+        <h3>Math check</h3>
+        <div className={"ex-card ex-math" + (mathOk ? " ok" : " bad")}>
+          <b>{mathOk ? "✅ All totals reconcile" : "⚠️ Totals need a look"}</b>
+          <small>Expenses {fmt(expenseTotal)} · by day {fmt(byDay)} · by category {fmt(byCategory)}</small>
+          <small>Friend net {fmt(loanNet)} · to receive − to pay</small>
+        </div>
+      </div>
+
+      <div className="ex-profile-sec">
         <h3>Friends</h3>
         <div className="ex-card">
           <div className="ex-profile-row"><small>To receive</small><b className="in">{fmt(loans?.toReceive || 0)}</b></div>
@@ -93,6 +138,7 @@ export default function Profile({ items, goLoans }) {
       </div>
 
       <div className="ex-profile-actions">
+        <button className="ex-btn plain" disabled={busy} onClick={downloadBackup}>{busy ? "…" : "⬇️ Backup JSON"}</button>
         <button className="ex-btn plain" onClick={toggle}>{dark ? "☀️ Light mode" : "🌙 Dark mode"}</button>
         <button className="ex-btn" onClick={() => setAskOut(true)}>Log out</button>
       </div>

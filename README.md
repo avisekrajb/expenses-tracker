@@ -2,8 +2,8 @@
 
 Mobile-first expense tracker (React + Vite) with a Node/Express + MongoDB Atlas API,
 Cloudinary image storage, budgets, friend loans (give & take), receipt photos, insights,
-search/filters, CSV export and bar / line / pie charts (daily to 10-year reports, month
-navigation, dark mode, profile photo).
+search/filters, CSV export, tags, recurring expenses, bill splitting, JSON backup and
+bar / line / pie charts (daily to 10-year reports, month navigation, dark mode, profile photo).
 
 ## Features
 
@@ -28,6 +28,19 @@ navigation, dark mode, profile photo).
 7. **Detailed profile** – account info, member-since date, spending stats, monthly budget and friend balance, opened from the avatar dropdown.
 8. **Five bottom-nav buttons** – Profile moved into the avatar menu (with theme toggle and logout).
 9. **Hash routing** – the selected section is in the URL (`#/home`, `#/expenses`, `#/budget`, `#/loans`, `#/total`, `#/profile`), so refreshing or sharing a link keeps the same page.
+
+### Added in v1.4
+10. **Fixed money math** – (the requested calculation fix) all amounts are summed in integer paisa with symmetric rounding, safe percentages/averages and exact bill splits; a "math check" card cross-verifies day, category and loan totals.
+11. **Tags** – add up to five tags per expense, filter by tag, search tags and include them in CSV export.
+12. **Split a bill** – split any expense with friends; each share is created as a "they owe you" loan, with equal-split help and a "your share" remainder.
+13. **Recurring expenses** – mark an expense as monthly and add all due repeats for the month in one tap.
+14. **Custom date-range reports** – pick any from/to range in Total.
+15. **Six-month comparison** – month-by-month totals with month-over-month deltas, and the correct "avg / month" figure in month view.
+16. **Daily budget pace** – Home shows how much you can spend per remaining day and whether you are ahead of or under pace.
+17. **Overdue loan alerts** – overdue count in the API summary, Home banner and Give/Take filter.
+18. **Quick-add favourites** – one-tap buttons for your three most-used categories with their last amount.
+19. **JSON backup** – download expenses, loans, current budget and the math-check result as one file.
+20. **Toast feedback** – inline success/error messages replace browser alerts.
 
 ## Run locally
 
@@ -73,13 +86,13 @@ Docker alternative: `docker compose up`.
 | POST | `/api/auth/login` | Log in, returns JWT |
 | GET | `/api/auth/me` | Current user |
 | GET | `/api/expenses` | List expenses |
-| POST | `/api/expenses` | Create expense (`receipt`, `receiptPublicId` optional) |
+| POST | `/api/expenses` | Create expense (`tags`, `recurring`, `receipt`, `receiptPublicId` optional) |
 | PUT | `/api/expenses/:id` | Update expense |
 | DELETE | `/api/expenses/:id` | Delete (body `{ password }`) |
-| GET | `/api/expenses/summary?from=&to=` | Aggregated totals |
+| GET | `/api/expenses/summary?from=&to=` | Totals plus `byTag` and `recurring` counts |
 | GET / PUT / DELETE | `/api/budgets/:month` | Monthly budget (`YYYY-MM`) |
 | GET / POST | `/api/loans` | List friend loans (`?type=given\|taken&settled=true\|false&q=name`) / create |
-| GET | `/api/loans/summary` | Money to receive, to pay, net and record counts |
+| GET | `/api/loans/summary` | Money to receive, to pay, net, overdue count/amount and record counts |
 | PUT | `/api/loans/:id` | Edit a friend loan (`settled` accepted) |
 | PUT | `/api/loans/:id/settle` | Settle a loan or reopen it with `{ "settled": false }` |
 | DELETE | `/api/loans/:id` | Delete a friend loan |
@@ -111,9 +124,10 @@ MONGO_URI="mongodb+srv://..." MONGODB_DB=expensetracker_test JWT_SECRET=test \
   node test/e2e.mjs
 ```
 
-The suite covers auth, validation, CRUD, summaries, budgets, friend loans (give/take,
-settle, filters and summary), Cloudinary uploads, receipts, profile photos, CORS and
-password-protected deletes (52 assertions).
+The suite covers money math (rounding, exact splits, safe percentages), auth, validation,
+CRUD, summaries, budgets, tags, recurring expenses, friend loans (give/take, settle,
+filters, overdue and summary), Cloudinary uploads, receipts, profile photos, CORS and
+password-protected deletes (60 assertions).
 
 ## Notes
 - Never commit `.env` files (they are in `.gitignore`).

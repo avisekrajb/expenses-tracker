@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import * as expenseApi from "../services/expenses";
+import * as loanApi from "../services/loans";
+import { pad, todayStr } from "../utils/helpers";
 import Login from "./Login";
 import Home from "./Home";
 import List from "./List";
@@ -11,6 +13,7 @@ import Total from "./Total";
 import Profile from "./Profile";
 import AddSheet from "./AddSheet";
 import DeleteSheet from "./DeleteSheet";
+import SplitSheet from "./SplitSheet";
 
 const TABS = [
   ["home", "🏠", "Home"],
@@ -36,7 +39,17 @@ export default function Expenses() {
   const [editItem, setEditItem] = useState(null);
   const [days, setDays] = useState(7);
   const [delId, setDelId] = useState(null);
+  const [splitItem, setSplitItem] = useState(null);
+  const [splitFriends, setSplitFriends] = useState([]);
+  const [toast, setToast] = useState("");
   const uid = user?.id;
+
+  const showToast = (msg) => setToast(msg);
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(""), 3500);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   // Hash routing keeps the selected section in the URL, so refresh/deep links work.
   useEffect(() => {
@@ -60,7 +73,7 @@ export default function Expenses() {
     // and would wrongly reset the route to home.
     if (!ready) return;
     if (!uid) { setItems([]); go("home"); return; }
-    expenseApi.list().then(setItems).catch((e) => alert(e.message));
+    expenseApi.list().then(setItems).catch((e) => showToast(e.message));
   }, [ready, uid]);
 
   const add = async (e) => {
@@ -71,6 +84,36 @@ export default function Expenses() {
   const saveEdit = async (e) => {
     const x = await expenseApi.update(editItem.id, e);
     setItems((p) => p.map((i) => (i.id === x.id ? x : i)));
+  };
+
+  const openSplit = (e) => {
+    setSplitItem(e);
+    loanApi.list().then((rows) => setSplitFriends(rows.map((r) => r.friend))).catch(() => setSplitFriends([]));
+  };
+
+  const quickAdd = async ({ category, amount }) => {
+    try {
+      const x = await expenseApi.create({ amount, category, date: todayStr(), desc: "Quick add", tags: [], recurring: false });
+      setItems((p) => [x, ...p]);
+      showToast(`Added ${category} · Rs ${amount}`);
+    } catch (e) { showToast(e.message); }
+  };
+
+  const addRecurring = async (rows) => {
+    const now = new Date();
+    const maxDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const month = todayStr().slice(0, 7);
+    try {
+      for (const e of rows) {
+        const day = pad(Math.min(Number(e.date.slice(8, 10)) || 1, maxDay));
+        await expenseApi.create({
+          amount: e.amount, category: e.category, date: `${month}-${day}`,
+          desc: e.desc || "", tags: e.tags || [], recurring: true,
+        });
+      }
+      setItems(await expenseApi.list());
+      showToast(`Added ${rows.length} recurring expense${rows.length === 1 ? "" : "s"} for this month`);
+    } catch (e) { showToast(e.message); }
   };
 
   const delItem = items.find((e) => e.id === delId);
@@ -107,8 +150,12 @@ export default function Expenses() {
             </div>
             {menu && <div className="ex-menu-scrim" onClick={() => setMenu(false)} />}
             <div className="ex-body">
-              {tab === "home" && <Home user={user} items={items} days={days} setDays={setDays} goBudget={() => go("budget")} goLoans={() => go("loans")} />}
-              {tab === "expenses" && <List items={items} del={setDelId} edit={setEditItem} />}
+              {tab === "home" && (
+                <Home user={user} items={items} days={days} setDays={setDays}
+                  goBudget={() => go("budget")} goLoans={() => go("loans")}
+                  quickAdd={quickAdd} addRecurring={addRecurring} />
+              )}
+              {tab === "expenses" && <List items={items} del={setDelId} edit={setEditItem} split={openSplit} />}
               {tab === "budget" && <Budget items={items} />}
               {tab === "loans" && <Loans />}
               {tab === "total" && <Total items={items} days={days} setDays={setDays} />}
@@ -142,6 +189,18 @@ export default function Expenses() {
                 onConfirm={() => { setItems((p) => p.filter((e) => e.id !== delId)); setDelId(null); }}
               />
             )}
+            {splitItem && (
+              <SplitSheet
+                item={splitItem}
+                friends={splitFriends}
+                onClose={() => setSplitItem(null)}
+                onDone={(count, amount) => {
+                  setSplitItem(null);
+                  showToast(`Split with ${count} friend${count === 1 ? "" : "s"} · ${amount} owed to you`);
+                }}
+              />
+            )}
+            {toast && <div className="ex-toast" onClick={() => setToast("")}>{toast}</div>}
           </>
         )}
       </div>
