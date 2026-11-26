@@ -38,6 +38,12 @@ export default function AdminApp() {
   const [overrides, setOverrides] = useState([]);
   const [donations, setDonations] = useState(null);
   const [messages, setMessages] = useState([]);
+  const [neon, setNeon] = useState(false);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setNeon(true), 10000);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const goHome = () => {
     window.history.replaceState(null, "", "/");
@@ -99,7 +105,7 @@ export default function AdminApp() {
 
   return (
     <div className="ad-shell">
-      <header className="ad-top">
+      <header className={"ad-top" + (neon ? " neon" : "")}>
         <div className="ad-brand"><span>₨</span><b>Kharcha Admin</b></div>
         <div className="ad-top-right">
           <small>{user.email}</small>

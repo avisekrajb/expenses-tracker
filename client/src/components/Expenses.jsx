@@ -38,6 +38,8 @@ export default function Expenses() {
   const [items, setItems] = useState([]);
   const [tab, setTab] = useState(routeFromHash);
   const [menu, setMenu] = useState(false);
+  // Neon snake border turns on 10 seconds after login and stays on.
+  const [neon, setNeon] = useState(false);
   const [sheet, setSheet] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [days, setDays] = useState(7);
@@ -46,6 +48,12 @@ export default function Expenses() {
   const [splitFriends, setSplitFriends] = useState([]);
   const [toast, setToast] = useState("");
   const uid = user?.id;
+
+  useEffect(() => {
+    if (!user?.id) { setNeon(false); return; }
+    const timer = window.setTimeout(() => setNeon(true), 10000);
+    return () => window.clearTimeout(timer);
+  }, [user?.id]);
 
   const showToast = (msg) => setToast(msg);
   useEffect(() => {
@@ -130,7 +138,7 @@ export default function Expenses() {
           <Login />
         ) : (
           <>
-            <div className={"ex-top" + (menu ? " menu-open" : "")}>
+            <div className={"ex-top" + (menu ? " menu-open" : "") + (neon ? " neon" : "")}>
               <button className="ex-brand ex-brand-link" onClick={() => go("home")}>
                 <span>₨</span><b>Kharcha</b>
               </button>

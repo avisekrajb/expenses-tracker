@@ -84,6 +84,7 @@ export default function PublicApp() {
       <header className={"pub-header" + (neon ? " neon" : "")}>
         <div className="pub-wrap pub-header-in">
           <Brand config={config} go={go} />
+          <button className="pub-theme" onClick={toggle} aria-label="Switch light or dark mode">{dark ? "☀️" : "🌙"}</button>
           <button className="pub-menu-btn" aria-label="Toggle menu" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
             {open ? "✕" : "☰"}
           </button>
@@ -98,7 +99,6 @@ export default function PublicApp() {
               <InstallButton className="pub-btn tiny ghost" />
             </FeatureGate>
           </nav>
-          <button className="pub-theme" onClick={toggle} aria-label="Switch light or dark mode">{dark ? "☀️" : "🌙"}</button>
         </div>
       </header>
 
