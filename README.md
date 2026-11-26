@@ -24,6 +24,11 @@ navigation, dark mode, profile photo).
 ### Added in v1.2
 6. **Give & Take** – track money you lend to or borrow from friends: friend name, amount, date, optional return-by date and note, with settle / undo, edit, delete, search, filters and a "to receive / to pay / net" summary on Home and the new tab.
 
+### Added in v1.3
+7. **Detailed profile** – account info, member-since date, spending stats, monthly budget and friend balance, opened from the avatar dropdown.
+8. **Five bottom-nav buttons** – Profile moved into the avatar menu (with theme toggle and logout).
+9. **Hash routing** – the selected section is in the URL (`#/home`, `#/expenses`, `#/budget`, `#/loans`, `#/total`, `#/profile`), so refreshing or sharing a link keeps the same page.
+
 ## Run locally
 
 ```bash

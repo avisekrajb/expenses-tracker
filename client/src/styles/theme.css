@@ -38,3 +38,10 @@
 .dark .ex-loan-type button{background:#1f2447;color:#c3c8ec}
 .dark .ex-loan-add{background:#6d5dfc;color:#fff}
 .dark .ex-loan-cta{color:#a99dff}
+
+/* v1.3 dark mode */
+.dark .ex-dropdown{background:#171b36;box-shadow:0 12px 30px #0008}
+.dark .ex-dropdown button{color:#c3c8ec}
+.dark .ex-dropdown button:hover{background:#1f2447}
+.dark .ex-profile-stats>div{background:#1f2447}
+.dark .ex-profile-row{border-color:#262b50}

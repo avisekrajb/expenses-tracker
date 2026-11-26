@@ -158,3 +158,27 @@ input:focus{border-color:#6d5dfc}
 .ex-loan-confirm{align-self:flex-end;width:100%;display:flex;flex-direction:column;gap:6px}
 .ex-loan-confirm .ex-row{margin-top:10px}
 .ex-loan-cta{color:#16a34a}
+
+/* ---------- v1.3 profile, dropdown and hash routes ---------- */
+.ex-brand-link{border:0;background:none;color:inherit;padding:0;cursor:pointer;font-family:inherit}
+.ex-top.menu-open{z-index:12}
+.ex-menu-scrim{position:absolute;inset:0;z-index:10;background:transparent}
+.ex-profile-menu{position:relative}
+.ex-dropdown{position:absolute;right:0;top:44px;width:172px;background:#fff;border-radius:16px;padding:6px;box-shadow:0 12px 30px #1b1f3b33;display:flex;flex-direction:column;gap:2px;z-index:20}
+.ex-dropdown button{border:0;background:none;text-align:left;padding:10px 12px;border-radius:12px;font-size:13px;font-weight:600;color:#4a4f73;width:100%;font-family:inherit}
+.ex-dropdown button:hover{background:#f2f3fb}
+.ex-dropdown button.danger{color:#ef4444}
+.ex-profile-head{gap:4px}
+.ex-profile-head h3{margin-top:6px}
+.ex-profile-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0 4px}
+.ex-profile-stats>div{background:#f7f8ff;border-radius:14px;padding:10px;display:flex;flex-direction:column;gap:3px}
+.ex-profile-stats small{font-size:10px}
+.ex-profile-stats b{font-size:13px}
+.ex-profile-sec{margin-top:14px}
+.ex-profile-sec h3{margin:0 0 6px}
+.ex-profile-row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid #f1f2f9;font-size:13px}
+.ex-profile-row:last-of-type{border:0}
+.ex-profile-row b.in{color:#16a34a}
+.ex-profile-row b.out{color:#ef4444}
+.ex-profile-actions{display:flex;gap:8px;margin-top:16px}
+.ex-profile-actions .ex-btn{margin-top:0;font-size:13px;padding:12px}
