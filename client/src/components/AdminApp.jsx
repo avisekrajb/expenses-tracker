@@ -17,6 +17,10 @@ const DONATION_FIELDS = [
   ["qrUrl", "QR image URL"], ["note", "Public note"],
 ];
 const TABS = ["Overview", "Content", "Features", "Requests", "Donations", "Messages"];
+const TAB_ICONS = {
+  Overview: "⌂", Content: "✎", Features: "⚡",
+  Requests: "📨", Donations: "💛", Messages: "✉️",
+};
 
 function Row({ label, children }) {
   return <label className="ad-field"><span>{label}</span>{children}</label>;
@@ -105,9 +109,44 @@ export default function AdminApp() {
       </header>
 
       <div className="ad-wrap">
+        <section className="ad-mobile-hero" aria-label="Admin overview">
+          <div className="ad-mobile-hero-top">
+            <div>
+              <small>Control center</small>
+              <h1>Good to see you 👋</h1>
+              <p>Tap a card to jump straight to what needs attention.</p>
+            </div>
+            <span className="ad-mobile-live"><i />Live</span>
+          </div>
+          <div className="ad-mobile-stats">
+            <button onClick={() => setTab("Requests")}>
+              <b>{requests.filter((r) => r.status === "pending").length}</b><small>Requests</small>
+            </button>
+            <button onClick={() => setTab("Features")}>
+              <b>{overrides.length}</b><small>User grants</small>
+            </button>
+            <button onClick={() => setTab("Donations")}>
+              <b>{donations?.pendingCount ?? 0}</b><small>To verify</small>
+            </button>
+            <button onClick={() => setTab("Messages")}>
+              <b>{messages.filter((m) => m.status === "new").length}</b><small>Messages</small>
+            </button>
+          </div>
+        </section>
+
         <nav className="ad-tabs" aria-label="Admin sections">
           {TABS.map((t) => (
             <button key={t} className={tab === t ? "on" : ""} onClick={() => setTab(t)}>{t}</button>
+          ))}
+        </nav>
+        <nav className="ad-mobile-tabs" aria-label="Admin sections">
+          {TABS.map((t) => (
+            <button key={t} className={tab === t ? "on" : ""} onClick={() => {
+              setTab(t);
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}>
+              <span>{TAB_ICONS[t]}</span><small>{t}</small>
+            </button>
           ))}
         </nav>
         {msg && <div className="ad-msg">{msg}</div>}

@@ -37,10 +37,17 @@ function Brand({ config, go }) {
 export default function PublicApp() {
   const [route, setRoute] = useState(() => normalize(window.location.pathname));
   const [open, setOpen] = useState(false);
+  // The neon "snake" border switches on after 10 seconds and then keeps running.
+  const [neon, setNeon] = useState(false);
   const { dark, toggle } = useTheme();
   const { user } = useAuth();
   const { config, isAdmin } = useSite();
   useSEO(route === "/admin" ? "/login" : route);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setNeon(true), 10000);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     const sync = () => setRoute(normalize(window.location.pathname));
@@ -74,7 +81,7 @@ export default function PublicApp() {
 
   return (
     <div className={"pub-root" + (dark ? " dark" : "")}>
-      <header className="pub-header">
+      <header className={"pub-header" + (neon ? " neon" : "")}>
         <div className="pub-wrap pub-header-in">
           <Brand config={config} go={go} />
           <button className="pub-menu-btn" aria-label="Toggle menu" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
