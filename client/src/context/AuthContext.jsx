@@ -29,6 +29,7 @@ export function AuthProvider({ children }) {
     }
     setUser(data.user);
     window.history.replaceState(null, "", "/#/home");
+    window.dispatchEvent(new Event("routechange"));
     return data.user;
   };
 
@@ -38,11 +39,18 @@ export function AuthProvider({ children }) {
     setUser(data.user);
     setChallenge(null);
     window.history.replaceState(null, "", "/#/home");
+    window.dispatchEvent(new Event("routechange"));
     return data.user;
   };
 
   const signup = (name, email, password) => authApi.signup(name, email, password);
-  const logout = () => { authApi.logout(); setUser(null); setChallenge(null); window.history.replaceState(null, "", "/"); };
+  const logout = () => {
+    authApi.logout();
+    setUser(null);
+    setChallenge(null);
+    window.history.replaceState(null, "", "/");
+    window.dispatchEvent(new Event("routechange"));
+  };
 
   return (
     <Ctx.Provider value={{ user, setUser, ready, challenge, login, signup, logout, verify2FA, cancel2FA: () => setChallenge(null) }}>

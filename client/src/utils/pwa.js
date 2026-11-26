@@ -28,6 +28,12 @@ export function useInstallPrompt() {
   return { canInstall, install };
 }
 
+export const isStandalone = () =>
+  Boolean(window.navigator.standalone || window.matchMedia("(display-mode: standalone)").matches);
+
+export const isIOS = () => /iPad|iPhone|iPod/.test(window.navigator.userAgent) ||
+  (window.navigator.platform === "MacIntel" && window.navigator.maxTouchPoints > 1);
+
 export const registerServiceWorker = () => {
   if ("serviceWorker" in navigator && window.location.protocol !== "file:") {
     window.addEventListener("load", () => {

@@ -4,8 +4,10 @@ import { hashPassword, comparePassword } from "../utils/hashPw.js";
 import { signToken, signChallenge } from "../utils/jwt.js";
 import { validateSignup } from "../utils/validate.js";
 import { uploadImage, destroyImage } from "../config/cloudinary.js";
+import { ensureAdmin, isAdminEmail } from "../services/admin.js";
 
 export const signup = asyncHandler(async (req, res) => {
+  await ensureAdmin();
   const err = validateSignup(req.body);
   if (err) throw new HttpError(400, err);
   const email = req.body.email.trim().toLowerCase();
@@ -15,19 +17,24 @@ export const signup = asyncHandler(async (req, res) => {
 });
 
 export const login = asyncHandler(async (req, res) => {
+  await ensureAdmin();
   const email = String(req.body?.email || "").trim().toLowerCase();
   const user = await User.findOne({ email }).select("+password");
   if (!user || !(await comparePassword(req.body?.password, user.password))) throw new HttpError(401, "Wrong email or password.");
   if (user.twoFactor?.enabled) {
     return res.json({ twoFactorRequired: true, challengeToken: signChallenge(user.id), email: user.email });
   }
-  res.json({ token: signToken(user.id), user });
+  const safe = user.toJSON();
+  safe.isAdmin = isAdminEmail(user.email);
+  res.json({ token: signToken(user.id), user: safe });
 });
 
 export const me = asyncHandler(async (req, res) => {
   const user = await User.findById(req.userId);
   if (!user) throw new HttpError(401, "Please log in again.");
-  res.json(user);
+  const safe = user.toJSON();
+  safe.isAdmin = isAdminEmail(user.email);
+  res.json(safe);
 });
 
 // PUT /api/users/me  (multipart: optional "photo" file, optional "name")

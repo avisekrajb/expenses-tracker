@@ -10,8 +10,10 @@ import { daysLeftInMonth } from "../utils/dates";
 import { pct, round2 } from "../utils/money";
 import { getBudget } from "../services/budgets";
 import { summary as loanSummary } from "../services/loans";
+import { useSite } from "../context/SiteContext";
 
 export default function Home({ user, items, days, setDays, goBudget, goLoans, quickAdd, addRecurring }) {
+  const { can } = useSite();
   const t = calc(items, { days: 1 });
   const w = calc(items, { days: 7 });
   const now = new Date();
@@ -89,7 +91,7 @@ export default function Home({ user, items, days, setDays, goBudget, goLoans, qu
         </div>
       </div>
 
-      {budget && limit > 0 && (
+      {can("budgets") && budget && limit > 0 && (
         <div className={"ex-card ex-budget-banner" + (monthTotal > limit ? " over" : "")}>
           <div className="ex-between">
             <b>Monthly budget</b>
@@ -115,12 +117,12 @@ export default function Home({ user, items, days, setDays, goBudget, goLoans, qu
           )}
         </div>
       )}
-      {budget && limit === 0 && (
+      {can("budgets") && budget && limit === 0 && (
         <button className="ex-budget-cta" onClick={goBudget}>
           🎯 Set a monthly budget and get alerts <span>›</span>
         </button>
       )}
-      {loanSum && (Number(loanSum.toReceive) > 0 || Number(loanSum.toPay) > 0 || Number(loanSum.overdue) > 0) && (
+      {can("loans") && loanSum && (Number(loanSum.toReceive) > 0 || Number(loanSum.toPay) > 0 || Number(loanSum.overdue) > 0) && (
         <button className="ex-budget-cta ex-loan-cta" onClick={goLoans}>
           🤝 Friends · {fmt(loanSum.toReceive)} to receive / {fmt(loanSum.toPay)} to pay
           {Number(loanSum.overdue) > 0 ? ` · ⚠️ ${loanSum.overdue} overdue` : ""} <span>›</span>
@@ -140,7 +142,7 @@ export default function Home({ user, items, days, setDays, goBudget, goLoans, qu
         </>
       )}
 
-      {recurringDue.length > 0 && (
+      {can("recurring") && recurringDue.length > 0 && (
         <div className="ex-card ex-rec-card">
           <div className="ex-between"><b>↻ Recurring this month</b><small>{recurringDue.length} due</small></div>
           <small>Add your monthly repeats in one tap.</small>

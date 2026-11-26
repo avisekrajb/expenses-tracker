@@ -12,4 +12,6 @@ const avatarUpload = multer({ storage: multer.memoryStorage(), limits: { fileSiz
 const receiptUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 }, fileFilter: imageFilter });
 
 export const uploadPhoto = avatarUpload.single("photo");
+export const uploadLogo = avatarUpload.single("logo");
 export const uploadReceipt = receiptUpload.single("receipt");
+export const uploadScreenshot = receiptUpload.single("screenshot");

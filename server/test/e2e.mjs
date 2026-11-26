@@ -1,4 +1,5 @@
 /* End-to-end smoke test for the Kharcha API. Run with the server on BASE. */
+import "dotenv/config";
 import { round2, sumMoney, splitMoney, pct, deltaPct } from "../../client/src/utils/money.js";
 import { generate as generateTotp } from "otplib";
 
@@ -215,9 +216,11 @@ ok(r.status === 200 && r.data?.photo === null, "DELETE /api/users/me/photo");
 const mainToken = token;
 
 r = await req("GET", "/api/config");
-ok(r.status === 200 && r.data?.app === "Kharcha" && r.data?.version === "2.0.0", "GET /api/config (public)", JSON.stringify(r.data));
+ok(r.status === 200 && r.data?.app === "Kharcha" && r.data?.version === "2.1.0", "GET /api/config (public)", JSON.stringify(r.data));
 ok(r.data?.push?.enabled === true && Boolean(r.data?.push?.publicKey), "config advertises Web Push keys");
-ok(typeof r.data?.donations?.esewaId === "string", "config exposes donation details");
+ok(typeof r.data?.donations?.esewaId === "string" && Boolean(r.data?.contact?.email), "config exposes donation + contact details");
+ok(Object.keys(r.data?.features || {}).length === 12 && r.data?.features?.expenses === true,
+  "config advertises every feature switch", JSON.stringify(r.data?.features));
 
 r = await req("GET", "/api/donations/stats");
 ok(r.status === 200 && typeof r.data?.total === "number" && typeof r.data?.count === "number", "GET /api/donations/stats (public)");
@@ -228,9 +231,17 @@ ok(anonDonation.status === 401, "donations require auth");
 r = await req("POST", "/api/donations", { amount: 0, method: "esewa" });
 ok(r.status === 400, "zero donation rejected");
 r = await req("POST", "/api/donations", { amount: 500, method: "esewa", note: "Test pledge" });
-ok(r.status === 201 && r.data?.amount === 500, "POST /api/donations", JSON.stringify(r.data));
+ok(r.status === 400, "donation without screenshot rejected");
+r = await req("POST", "/api/donations", {
+  amount: 500, method: "esewa", note: "Test pledge",
+  screenshotUrl: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==",
+});
+ok(r.status === 201 && r.data?.amount === 500 && r.data?.status === "pending", "POST /api/donations with screenshot", JSON.stringify(r.data));
+const donationId = r.data?.id;
 r = await req("GET", "/api/donations/me");
-ok(r.status === 200 && r.data?.count === 1 && r.data?.total === 500, "GET /api/donations/me totals pledges", JSON.stringify(r.data));
+ok(r.status === 200 && r.data?.count === 1 && r.data?.total === 500 && r.data?.approvedTotal === 0, "GET /api/donations/me totals pledges", JSON.stringify(r.data));
+r = await req("GET", "/api/donations/stats");
+ok(r.data?.count === 0, "pending donations are not counted publicly");
 
 r = await req("GET", "/api/notifications/config");
 ok(r.status === 200 && r.data?.enabled === true && Boolean(r.data?.publicKey), "GET /api/notifications/config");
@@ -303,6 +314,87 @@ r = await req("POST", "/api/auth/login", { email: twofaEmail, password });
 ok(r.status === 200 && Boolean(r.data?.token) && !r.data?.twoFactorRequired, "login is normal again after disabling 2FA");
 token = mainToken;
 
+// ---------- v2.1: admin controls, feature requests, contact management ----------
+const adminEmail = (process.env.ADMIN_EMAILS || "").split(",")[0].trim().toLowerCase();
+const adminPassword = process.env.ADMIN_BOOTSTRAP_PASSWORD || "";
+if (adminEmail && adminPassword) {
+  r = await req("POST", "/api/auth/login", { email: adminEmail, password: adminPassword });
+  ok(r.status === 200 && r.data?.user?.isAdmin === true, "ADMIN_BOOTSTRAP_PASSWORD creates admin and logs in", JSON.stringify(r.data?.error || r.data?.user?.email));
+  const adminToken = r.data?.token || "";
+  const ah = { Authorization: `Bearer ${adminToken}` };
+
+  r = await req("GET", "/api/admin/session", undefined, ah);
+  ok(r.status === 200 && r.data?.ok === true && Boolean(r.data?.catalog?.expenses), "GET /api/admin/session");
+  r = await req("GET", "/api/admin/session");
+  ok(r.status === 403, "admin routes reject normal users");
+  r = await req("GET", "/api/features/mine");
+  ok(r.status === 200 && r.data?.isAdmin === false && r.data?.features?.expenses === true, "GET /api/features/mine for a normal user");
+
+  r = await req("POST", "/api/features/request", { feature: "expenses", note: "Please re-enable" });
+  ok(r.status === 201 && r.data?.request?.status === "pending", "POST /api/features/request", JSON.stringify(r.data));
+  r = await req("POST", "/api/features/request", { feature: "not-a-feature" });
+  ok(r.status === 400, "invalid feature request rejected");
+
+  r = await req("PUT", "/api/admin/settings", { features: { expenses: false } }, ah);
+  ok(r.status === 200 && r.data?.features?.expenses === false, "admin can turn a feature off");
+  r = await req("GET", "/api/features/mine");
+  ok(r.data?.features?.expenses === false, "user sees the feature as off");
+  r = await req("POST", "/api/expenses", { amount: 1, category: "Travel", date: today });
+  ok(r.status === 403, "disabled feature blocks writes");
+  r = await req("GET", "/api/expenses");
+  ok(r.status === 200 && Array.isArray(r.data), "disabled feature keeps old data readable");
+
+  r = await req("GET", "/api/admin/requests", undefined, ah);
+  const requestRow = r.data?.find((x) => x.userId?.email === email && x.feature === "expenses");
+  ok(Boolean(requestRow?.id), "admin sees the user request");
+  r = await req("POST", `/api/admin/requests/${requestRow?.id}/review`, { status: "approved" }, ah);
+  ok(r.status === 200 && r.data?.status === "approved", "admin approves a feature request");
+  r = await req("GET", "/api/features/mine");
+  ok(r.data?.features?.expenses === true, "approved request re-enables the feature for that user only");
+  r = await req("POST", "/api/expenses", { amount: 1, category: "Travel", date: today });
+  ok(r.status === 201, "approved user can add data again");
+
+  // Sub-feature switches also gate their write endpoints without deleting data.
+  r = await req("PUT", "/api/admin/settings", { features: { receipts: false, twoFactor: false } }, ah);
+  ok(r.status === 200 && r.data?.features?.receipts === false && r.data?.features?.twoFactor === false,
+    "admin can switch receipt photos and 2FA off");
+  r = await req("POST", "/api/auth/2fa/setup");
+  ok(r.status === 403, "disabled 2FA blocks setup");
+  const receiptForm = new FormData();
+  receiptForm.append("receipt", new Blob(["fake image"], { type: "image/png" }), "receipt.png");
+  const blockedReceipt = await fetch(BASE + "/api/uploads/receipt", {
+    method: "POST", headers: { Authorization: `Bearer ${token}` }, body: receiptForm,
+  });
+  ok(blockedReceipt.status === 403, "disabled receipt photos block uploads");
+  r = await req("PUT", "/api/admin/settings", { features: { receipts: true, twoFactor: true } }, ah);
+  ok(r.status === 200 && r.data?.features?.receipts === true && r.data?.features?.twoFactor === true,
+    "admin can switch receipt photos and 2FA back on");
+
+  r = await req("GET", "/api/admin/donations", undefined, ah);
+  const donationRow = r.data?.rows?.find((x) => x.id === donationId);
+  ok(Boolean(donationRow?.screenshot?.url), "admin sees donation payment screenshot", JSON.stringify(donationRow?.screenshot));
+  r = await req("POST", `/api/admin/donations/${donationId}/review`, { status: "approved" }, ah);
+  ok(r.status === 200 && r.data?.donation?.status === "approved", "admin approves a donation");
+  r = await req("GET", "/api/donations/stats");
+  ok(r.data?.count === 1 && r.data?.total === 500, "approved donation is counted publicly", JSON.stringify(r.data));
+
+  r = await req("POST", "/api/contact", { name: "Fan", email: "fan@example.com", message: "Great app, thank you!" });
+  ok(r.status === 201, "POST /api/contact stores a message");
+  r = await req("POST", "/api/contact", { name: "", email: "bad", message: "x" });
+  ok(r.status === 400, "invalid contact message rejected");
+  r = await req("GET", "/api/admin/messages", undefined, ah);
+  ok(r.data?.some((m) => m.email === "fan@example.com"), "admin can read contact messages");
+  r = await req("GET", "/api/contact/details");
+  ok(r.status === 200 && typeof r.data?.email === "string", "GET /api/contact/details");
+  r = await req("PUT", "/api/admin/settings", {
+    contact: { email: "hello@kharcha.app" },
+    footer: { copyright: `© ${new Date().getFullYear()} Kharcha. Built with care in Nepal.` },
+    features: { expenses: true },
+  }, ah);
+  ok(r.status === 200 && r.data?.contact?.email === "hello@kharcha.app", "admin can edit footer/contact details");
+  token = mainToken;
+}
+
 // Cleanup
 try {
   const mongoose = (await import("mongoose")).default;
@@ -314,6 +406,9 @@ try {
   const Donation = (await import("../src/models/Donation.js")).default;
   const PushSubscription = (await import("../src/models/PushSubscription.js")).default;
   const NotificationLog = (await import("../src/models/NotificationLog.js")).default;
+  const FeatureRequest = (await import("../src/models/FeatureRequest.js")).default;
+  const FeatureOverride = (await import("../src/models/FeatureOverride.js")).default;
+  const ContactMessage = (await import("../src/models/ContactMessage.js")).default;
   const users = await User.find({ email: { $in: [email, twofaEmail] } });
   const ids = users.map((u) => u._id);
   if (ids.length) {
@@ -323,8 +418,11 @@ try {
     await Donation.deleteMany({ userId: { $in: ids } });
     await PushSubscription.deleteMany({ userId: { $in: ids } });
     await NotificationLog.deleteMany({ userId: { $in: ids } });
+    await FeatureRequest.deleteMany({ userId: { $in: ids } });
+    await FeatureOverride.deleteMany({ userId: { $in: ids } });
     await User.deleteMany({ _id: { $in: ids } });
   }
+  await ContactMessage.deleteMany({ email: "fan@example.com" });
   await mongoose.disconnect();
   console.log("  cleanup  test users and data removed");
 } catch (e) {

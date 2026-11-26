@@ -50,6 +50,13 @@ export const PAGES = {
     schema: "WebPage",
     noindex: true,
   },
+  "/admin": {
+    title: "Admin console | Kharcha",
+    description: "Private administration area for Kharcha site settings and approvals.",
+    keywords: "",
+    schema: "WebPage",
+    noindex: true,
+  },
 };
 
 const setMeta = (attr, key, content) => {

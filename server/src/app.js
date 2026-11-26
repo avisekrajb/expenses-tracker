@@ -13,6 +13,9 @@ import uploadRoutes from "./routes/uploadRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import donationRoutes from "./routes/donationRoutes.js";
 import cronRoutes from "./routes/cronRoutes.js";
+import adminRoutes from "./routes/adminRoutes.js";
+import featureRoutes from "./routes/featureRoutes.js";
+import contactRoutes from "./routes/contactRoutes.js";
 import { publicConfig } from "./controllers/configController.js";
 import { notFound, errorHandler } from "./middleware/error.js";
 
@@ -44,6 +47,9 @@ app.get("/api/health", (_req, res) =>
 
 app.get("/api/config", publicConfig);
 app.use("/api/auth", authRoutes);
+app.use("/api/features", featureRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/contact", contactRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/donations", donationRoutes);
 app.use("/api/cron", cronRoutes);

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
+import { useSite } from "../context/SiteContext";
 import * as expenseApi from "../services/expenses";
 import * as loanApi from "../services/loans";
 import { pad, todayStr } from "../utils/helpers";
@@ -14,6 +15,7 @@ import Profile from "./Profile";
 import AddSheet from "./AddSheet";
 import DeleteSheet from "./DeleteSheet";
 import SplitSheet from "./SplitSheet";
+import FeatureGate from "./FeatureGate";
 
 const TABS = [
   ["home", "🏠", "Home"],
@@ -32,6 +34,7 @@ const routeFromHash = () => {
 export default function Expenses() {
   const { user, ready, logout } = useAuth();
   const { dark, toggle } = useTheme();
+  const { can, isAdmin } = useSite();
   const [items, setItems] = useState([]);
   const [tab, setTab] = useState(routeFromHash);
   const [menu, setMenu] = useState(false);
@@ -141,6 +144,11 @@ export default function Expenses() {
                   {menu && (
                     <div className="ex-dropdown">
                       <button onClick={() => go("profile")}>👤 My profile</button>
+                      {(user?.isAdmin || isAdmin) && <button onClick={() => {
+                        setMenu(false);
+                        window.history.pushState(null, "", "/admin");
+                        window.dispatchEvent(new Event("routechange"));
+                      }}>🛠️ Admin console</button>}
                       <button onClick={() => { toggle(); setMenu(false); }}>{dark ? "☀️ Light mode" : "🌙 Dark mode"}</button>
                       <button className="danger" onClick={() => { logout(); setMenu(false); }}>🚪 Log out</button>
                     </div>
@@ -151,17 +159,35 @@ export default function Expenses() {
             {menu && <div className="ex-menu-scrim" onClick={() => setMenu(false)} />}
             <div className="ex-body">
               {tab === "home" && (
-                <Home user={user} items={items} days={days} setDays={setDays}
-                  goBudget={() => go("budget")} goLoans={() => go("loans")}
-                  quickAdd={quickAdd} addRecurring={addRecurring} />
+                <FeatureGate feature="expenses" label="Expense tracking">
+                  <Home user={user} items={items} days={days} setDays={setDays}
+                    goBudget={() => go("budget")} goLoans={() => go("loans")}
+                    quickAdd={quickAdd} addRecurring={addRecurring} />
+                </FeatureGate>
               )}
-              {tab === "expenses" && <List items={items} del={setDelId} edit={setEditItem} split={openSplit} />}
-              {tab === "budget" && <Budget items={items} />}
-              {tab === "loans" && <Loans />}
-              {tab === "total" && <Total items={items} days={days} setDays={setDays} />}
+              {tab === "expenses" && (
+                <FeatureGate feature="expenses" label="Expense tracking">
+                  <List items={items} del={setDelId} edit={setEditItem} split={openSplit} />
+                </FeatureGate>
+              )}
+              {tab === "budget" && (
+                <FeatureGate feature="budgets" label="Monthly budgets">
+                  <Budget items={items} />
+                </FeatureGate>
+              )}
+              {tab === "loans" && (
+                <FeatureGate feature="loans" label="Give & Take loans">
+                  <Loans />
+                </FeatureGate>
+              )}
+              {tab === "total" && (
+                <FeatureGate feature="reports" label="Reports & charts">
+                  <Total items={items} days={days} setDays={setDays} />
+                </FeatureGate>
+              )}
               {tab === "profile" && <Profile items={items} goLoans={() => go("loans")} />}
             </div>
-            {tab !== "loans" && tab !== "profile" && <button className="ex-fab" onClick={() => setSheet(true)} aria-label="Add expense">＋</button>}
+            {can("expenses") && tab !== "loans" && tab !== "profile" && <button className="ex-fab" onClick={() => setSheet(true)} aria-label="Add expense">＋</button>}
             <nav className="ex-nav">
               {TABS.map(([k, i, l]) => (
                 <button key={k} className={tab === k ? "on" : ""} onClick={() => go(k)}>

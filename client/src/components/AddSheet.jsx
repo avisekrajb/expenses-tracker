@@ -3,9 +3,11 @@ import { CATS } from "../utils/categories";
 import { r2, todayStr } from "../utils/helpers";
 import { resizeImage } from "../utils/photo";
 import { uploadReceipt } from "../services/upload";
+import { useSite } from "../context/SiteContext";
 
 // Add or edit an expense. Pass `item` to edit an existing record.
 export default function AddSheet({ onClose, onSave, item }) {
+  const { can } = useSite();
   const editing = Boolean(item);
   const [amount, setAmount] = useState(item ? String(item.amount) : "");
   const [category, setCategory] = useState(item?.category || "Eating");
@@ -43,16 +45,19 @@ export default function AddSheet({ onClose, onSave, item }) {
     setErr("");
     try {
       let url = receipt;
-      let publicId = null;
-      if (file) {
+      let publicId = item?.receiptPublicId || null;
+      if (file && can("receipts")) {
         const up = await uploadReceipt(await resizeImage(file, 1400));
         url = up.url;
         publicId = up.publicId;
       }
+      // Hidden features never erase what was already saved on the expense.
       await onSave({
         amount: r2(a), category, date, desc: desc.trim(),
-        tags: tags.split(",").map((t) => t.trim()).filter(Boolean).slice(0, 5),
-        recurring, receipt: url, receiptPublicId: publicId,
+        tags: can("tags") ? tags.split(",").map((t) => t.trim()).filter(Boolean).slice(0, 5) : (item?.tags || []),
+        recurring: can("recurring") ? recurring : Boolean(item?.recurring),
+        receipt: can("receipts") ? url : (item?.receipt || null),
+        receiptPublicId: can("receipts") ? publicId : (item?.receiptPublicId || null),
       });
     } catch (e) {
       setErr(e.message);
@@ -78,20 +83,27 @@ export default function AddSheet({ onClose, onSave, item }) {
         </div>
         <input type="date" value={date} max={todayStr()} onChange={(e) => setDate(e.target.value)} />
         <input placeholder="Description (e.g. momo at Thamel)" value={desc} onChange={(e) => setDesc(e.target.value)} />
-        <input placeholder="Tags (comma separated, e.g. lunch, friends)" value={tags}
-          onChange={(e) => setTags(e.target.value)} />
-        <label className="ex-check">
-          <input type="checkbox" checked={recurring} onChange={(e) => setRecurring(e.target.checked)} />
-          <span>Repeat every month</span>
-        </label>
+        {can("tags") ? (
+          <input placeholder="Tags (comma separated, e.g. lunch, friends)" value={tags}
+            onChange={(e) => setTags(e.target.value)} />
+        ) : <small className="ex-off-note">🔒 Tags are off. Existing tags stay saved.</small>}
 
-        <div className="ex-receipt-row">
-          <label className="ex-receipt-pick">
-            {preview ? <img src={preview} alt="Receipt preview" /> : <span>📎 Add receipt photo</span>}
-            <input type="file" accept="image/*" hidden onChange={pick} />
+        {can("recurring") ? (
+          <label className="ex-check">
+            <input type="checkbox" checked={recurring} onChange={(e) => setRecurring(e.target.checked)} />
+            <span>Repeat every month</span>
           </label>
-          {preview && <button className="ex-link" onClick={clearReceipt} type="button">Remove</button>}
-        </div>
+        ) : <small className="ex-off-note">🔒 Recurring is off. Existing repeats stay saved.</small>}
+
+        {can("receipts") ? (
+          <div className="ex-receipt-row">
+            <label className="ex-receipt-pick">
+              {preview ? <img src={preview} alt="Receipt preview" /> : <span>📎 Add receipt photo</span>}
+              <input type="file" accept="image/*" hidden onChange={pick} />
+            </label>
+            {preview && <button className="ex-link" onClick={clearReceipt} type="button">Remove</button>}
+          </div>
+        ) : <small className="ex-off-note">🔒 Receipt photos are off. Existing photos stay saved.</small>}
 
         {err && <div className="ex-err">{err}</div>}
         <button className="ex-btn" disabled={busy} onClick={go}>

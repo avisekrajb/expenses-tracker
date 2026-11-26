@@ -2,10 +2,12 @@ import React, { useMemo, useState } from "react";
 import Empty from "./Empty";
 import { CATS, catOf } from "../utils/categories";
 import { fmt, r2, todayStr } from "../utils/helpers";
+import { useSite } from "../context/SiteContext";
 
 const csvCell = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
 
 export default function List({ items, del, edit, split }) {
+  const { can } = useSite();
   const [q, setQ] = useState("");
   const [f, setF] = useState("All");
   const [tag, setTag] = useState("");
@@ -16,23 +18,24 @@ export default function List({ items, del, edit, split }) {
   const [openFilters, setOpenFilters] = useState(false);
   const [view, setView] = useState(null);
 
+  const effectiveTag = can("tags") ? tag : "";
   const shown = useMemo(() => {
     const term = q.trim().toLowerCase();
     const lo = min === "" ? null : Number(min);
     const hi = max === "" ? null : Number(max);
     return items
       .filter((e) => f === "All" || e.category === f)
-      .filter((e) => !tag || (e.tags || []).includes(tag))
+      .filter((e) => !effectiveTag || (e.tags || []).includes(effectiveTag))
       .filter((e) => !from || e.date >= from)
       .filter((e) => !to || e.date <= to)
       .filter((e) => lo === null || !Number.isFinite(lo) || e.amount >= lo)
       .filter((e) => hi === null || !Number.isFinite(hi) || e.amount <= hi)
       .filter((e) => !term || `${e.category} ${e.desc || ""} ${(e.tags || []).join(" ")}`.toLowerCase().includes(term))
       .sort((a, b) => b.date.localeCompare(a.date) || String(b.id).localeCompare(String(a.id)));
-  }, [items, q, f, tag, from, to, min, max]);
+  }, [items, q, f, effectiveTag, from, to, min, max]);
 
   const total = r2(shown.reduce((s, e) => s + e.amount, 0));
-  const filtered = Boolean(q || f !== "All" || tag || from || to || min || max);
+  const filtered = Boolean(q || f !== "All" || effectiveTag || from || to || min || max);
   const allTags = [...new Set(items.flatMap((e) => e.tags || []))].sort();
 
   const groups = {};
@@ -89,7 +92,7 @@ export default function List({ items, del, edit, split }) {
           <button key={n} className={f === n ? "on" : ""} onClick={() => setF(n)}>{n}</button>
         ))}
       </div>
-      {allTags.length > 0 && (
+      {can("tags") && allTags.length > 0 && (
         <div className="ex-chips ex-tag-chips">
           <button className={!tag ? "on" : ""} onClick={() => setTag("")}>All tags</button>
           {allTags.map((t) => (
@@ -111,20 +114,20 @@ export default function List({ items, del, edit, split }) {
               <div className="ex-item" key={e.id}>
                 <span style={{ background: c.c + "25" }}>{c.i}</span>
                 <div className="ex-item-main">
-                  <b>{e.category}{e.recurring && <em className="ex-rec"> ↻ monthly</em>}</b>
+                  <b>{e.category}{can("recurring") && e.recurring && <em className="ex-rec"> ↻ monthly</em>}</b>
                   <small>{e.desc || "No description"}</small>
-                  {(e.tags || []).length > 0 && (
+                  {can("tags") && (e.tags || []).length > 0 && (
                     <div className="ex-tags">{e.tags.map((t) => <em key={t}>#{t}</em>)}</div>
                   )}
                   <div className="ex-item-actions">
-                    <button onClick={() => split(e)}>✂️ Split</button>
+                    {can("splitBills") && <button onClick={() => split(e)}>✂️ Split</button>}
                     <button onClick={() => edit(e)}>✏️ Edit</button>
                     <button className="danger" onClick={() => del(e.id)}>Delete</button>
                   </div>
                 </div>
                 <div className="ex-amt">
                   <b>{fmt(e.amount)}</b>
-                  {e.receipt && (
+                  {can("receipts") && e.receipt && (
                     <button className="ex-receipt-thumb" onClick={() => setView(e.receipt)} aria-label="View receipt">
                       <img src={e.receipt} alt="Receipt" />
                     </button>

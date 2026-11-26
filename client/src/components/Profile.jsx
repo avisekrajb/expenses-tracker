@@ -8,19 +8,21 @@ import { summary as loanSummary, list as loanList } from "../services/loans";
 import { fmt, r2, todayStr } from "../utils/helpers";
 import { sumMoney } from "../utils/money";
 import { CATS } from "../utils/categories";
-import { useInstallPrompt } from "../utils/pwa";
+import { useSite } from "../context/SiteContext";
 import TwoFactorSettings from "./TwoFactorSettings";
 import NotificationSettings from "./NotificationSettings";
+import InstallButton from "./InstallButton";
+import FeatureGate from "./FeatureGate";
 
 export default function Profile({ items, goLoans }) {
   const { user, setUser, logout } = useAuth();
   const { dark, toggle } = useTheme();
+  const { isAdmin } = useSite();
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const [askOut, setAskOut] = useState(false);
   const [loans, setLoans] = useState(null);
   const [budget, setBudget] = useState(null);
-  const { canInstall, install } = useInstallPrompt();
   const month = todayStr().slice(0, 7);
 
   useEffect(() => {
@@ -143,23 +145,30 @@ export default function Profile({ items, goLoans }) {
 
       <div className="ex-profile-sec">
         <h3>Security</h3>
-        <TwoFactorSettings />
+        <FeatureGate feature="twoFactor" label="Two-step verification">
+          <TwoFactorSettings />
+        </FeatureGate>
       </div>
 
       <div className="ex-profile-sec">
         <h3>Alerts</h3>
-        <NotificationSettings />
+        <FeatureGate feature="notifications" label="Device notifications">
+          <NotificationSettings />
+        </FeatureGate>
       </div>
 
       <div className="ex-profile-sec">
         <h3>Kharcha app</h3>
         <div className="ex-card ex-app-card">
-          {canInstall ? (
-            <button className="ex-btn plain" onClick={install}>⬇️ Install Kharcha on this device</button>
-          ) : (
-            <small>Use your browser menu to “Add to Home screen” for quick offline access.</small>
+          <FeatureGate feature="install" label="Installable app">
+            <InstallButton className="ex-btn plain" />
+          </FeatureGate>
+          <FeatureGate feature="donations" label="Donations">
+            <button className="ex-btn plain" onClick={() => { window.history.pushState(null, "", "/donate"); window.dispatchEvent(new Event("routechange")); }}>💛 Support a family in need</button>
+          </FeatureGate>
+          {(user?.isAdmin || isAdmin) && (
+            <button className="ex-btn plain" onClick={() => { window.history.pushState(null, "", "/admin"); window.dispatchEvent(new Event("routechange")); }}>🛠️ Admin console</button>
           )}
-          <button className="ex-btn plain" onClick={() => { window.location.href = "/donate"; }}>💛 Support a family in need</button>
         </div>
       </div>
 

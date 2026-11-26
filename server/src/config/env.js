@@ -29,6 +29,8 @@ export const env = {
   VAPID_PRIVATE_KEY: process.env.VAPID_PRIVATE_KEY || "",
   VAPID_SUBJECT: process.env.VAPID_SUBJECT || "mailto:hello@kharcha.app",
   CRON_SECRET: process.env.CRON_SECRET || "",
+  ADMIN_EMAILS: (process.env.ADMIN_EMAILS || "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean),
+  ADMIN_BOOTSTRAP_PASSWORD: process.env.ADMIN_BOOTSTRAP_PASSWORD || "",
   donation: {
     esewaId: process.env.DONATION_ESEWA_ID || "",
     esewaName: process.env.DONATION_ESEWA_NAME || "",
