@@ -1,8 +1,9 @@
 # Kharcha – Kathmandu Expense Tracker
 
 Mobile-first expense tracker (React + Vite) with a Node/Express + MongoDB Atlas API,
-Cloudinary image storage, budgets, receipt photos, insights, search/filters, CSV export and
-bar / line / pie charts (daily to 10-year reports, month navigation, dark mode, profile photo).
+Cloudinary image storage, budgets, friend loans (give & take), receipt photos, insights,
+search/filters, CSV export and bar / line / pie charts (daily to 10-year reports, month
+navigation, dark mode, profile photo).
 
 ## Features
 
@@ -19,6 +20,9 @@ bar / line / pie charts (daily to 10-year reports, month navigation, dark mode, 
 3. **Search & filters** – search descriptions/categories, filter by category, date range and amount.
 4. **CSV export** – download the currently filtered expenses as a spreadsheet-ready CSV.
 5. **Insights** – month-over-month change, daily average, projected month spend, biggest expense, active days, add streak.
+
+### Added in v1.2
+6. **Give & Take** – track money you lend to or borrow from friends: friend name, amount, date, optional return-by date and note, with settle / undo, edit, delete, search, filters and a "to receive / to pay / net" summary on Home and the new tab.
 
 ## Run locally
 
@@ -69,6 +73,11 @@ Docker alternative: `docker compose up`.
 | DELETE | `/api/expenses/:id` | Delete (body `{ password }`) |
 | GET | `/api/expenses/summary?from=&to=` | Aggregated totals |
 | GET / PUT / DELETE | `/api/budgets/:month` | Monthly budget (`YYYY-MM`) |
+| GET / POST | `/api/loans` | List friend loans (`?type=given\|taken&settled=true\|false&q=name`) / create |
+| GET | `/api/loans/summary` | Money to receive, to pay, net and record counts |
+| PUT | `/api/loans/:id` | Edit a friend loan (`settled` accepted) |
+| PUT | `/api/loans/:id/settle` | Settle a loan or reopen it with `{ "settled": false }` |
+| DELETE | `/api/loans/:id` | Delete a friend loan |
 | POST | `/api/uploads/receipt` | Upload receipt image (multipart `receipt`) |
 | PUT | `/api/users/me` | Update name / profile photo |
 | DELETE | `/api/users/me/photo` | Remove profile photo |
@@ -97,8 +106,9 @@ MONGO_URI="mongodb+srv://..." MONGODB_DB=expensetracker_test JWT_SECRET=test \
   node test/e2e.mjs
 ```
 
-The suite covers auth, validation, CRUD, summaries, budgets, Cloudinary uploads, receipts,
-profile photos, CORS and password-protected deletes (35 assertions).
+The suite covers auth, validation, CRUD, summaries, budgets, friend loans (give/take,
+settle, filters and summary), Cloudinary uploads, receipts, profile photos, CORS and
+password-protected deletes (52 assertions).
 
 ## Notes
 - Never commit `.env` files (they are in `.gitignore`).

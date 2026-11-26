@@ -32,3 +32,9 @@
 .dark .ex-receipt-pick{background:#1f2447;border-color:#3a3f66}
 .dark .ex-receipt-thumb{background:#262b50}
 .dark .ex-receipt-view .ex-btn{background:#171b36;color:#eceefc}
+
+/* v1.2 dark mode */
+.dark .ex-loan-cards>div{background:#171b36;box-shadow:0 6px 18px #0006}
+.dark .ex-loan-type button{background:#1f2447;color:#c3c8ec}
+.dark .ex-loan-add{background:#6d5dfc;color:#fff}
+.dark .ex-loan-cta{color:#a99dff}

@@ -7,8 +7,9 @@ import { CATS } from "../utils/categories";
 import { calc } from "../utils/calc";
 import { fmt, r2, pad, todayStr } from "../utils/helpers";
 import { getBudget } from "../services/budgets";
+import { summary as loanSummary } from "../services/loans";
 
-export default function Home({ user, items, days, setDays, goBudget }) {
+export default function Home({ user, items, days, setDays, goBudget, goLoans }) {
   const t = calc(items, { days: 1 });
   const w = calc(items, { days: 7 });
   const now = new Date();
@@ -24,6 +25,13 @@ export default function Home({ user, items, days, setDays, goBudget }) {
     getBudget(monthKey).then((b) => alive && setBudget(b)).catch(() => alive && setBudget(null));
     return () => { alive = false; };
   }, [monthKey]);
+
+  const [loanSum, setLoanSum] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    loanSummary().then((s) => alive && setLoanSum(s)).catch(() => alive && setLoanSum(null));
+    return () => { alive = false; };
+  }, []);
 
   const limit = Number(budget?.overall) || 0;
   const left = r2(limit - monthTotal);
@@ -73,6 +81,11 @@ export default function Home({ user, items, days, setDays, goBudget }) {
       {budget && limit === 0 && (
         <button className="ex-budget-cta" onClick={goBudget}>
           🎯 Set a monthly budget and get alerts <span>›</span>
+        </button>
+      )}
+      {loanSum && (Number(loanSum.toReceive) > 0 || Number(loanSum.toPay) > 0) && (
+        <button className="ex-budget-cta ex-loan-cta" onClick={goLoans}>
+          🤝 Friends · {fmt(loanSum.toReceive)} to receive / {fmt(loanSum.toPay)} to pay <span>›</span>
         </button>
       )}
 

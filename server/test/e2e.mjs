@@ -111,6 +111,44 @@ ok(r.status === 400, "invalid budget rejected");
 r = await req("GET", "/api/budgets/2026-13");
 ok(r.status === 400, "invalid month rejected");
 
+// Give & Take (friend loans)
+r = await req("POST", "/api/loans", { type: "given", friend: "Sita", amount: 500, date: today, dueDate: today, note: "Hostel rent share" });
+ok(r.status === 201 && r.data?.type === "given" && r.data?.settled === false, "POST /api/loans (given)", JSON.stringify(r.data));
+const givenId = r.data?.id;
+r = await req("POST", "/api/loans", { type: "taken", friend: "Anish", amount: 200, date: today, note: "Bus fare" });
+ok(r.status === 201 && r.data?.type === "taken", "POST /api/loans (taken)");
+const takenId = r.data?.id;
+r = await req("POST", "/api/loans", { type: "given", friend: "", amount: 10, date: today });
+ok(r.status === 400, "loan without friend rejected");
+r = await req("POST", "/api/loans", { type: "lent", friend: "Ram", amount: 10, date: today });
+ok(r.status === 400, "invalid loan type rejected");
+r = await req("POST", "/api/loans", { type: "given", friend: "Ram", amount: -10, date: today });
+ok(r.status === 400, "invalid loan amount rejected");
+r = await req("POST", "/api/loans", { type: "given", friend: "Ram", amount: 10, date: today, dueDate: "26-11-2026" });
+ok(r.status === 400, "invalid loan due date rejected");
+r = await req("GET", "/api/loans");
+ok(r.status === 200 && Array.isArray(r.data) && r.data.length === 2, "GET /api/loans");
+r = await req("GET", "/api/loans?type=given");
+ok(r.status === 200 && r.data.length === 1 && r.data[0].friend === "Sita", "loans filter by type");
+r = await req("GET", "/api/loans?q=sita");
+ok(r.status === 200 && r.data.length === 1, "loans search by friend");
+r = await req("GET", "/api/loans/summary");
+ok(r.status === 200 && r.data?.toReceive === 500 && r.data?.toPay === 200 && r.data?.net === 300, "GET /api/loans/summary", JSON.stringify(r.data));
+r = await req("PUT", `/api/loans/${givenId}/settle`, { settled: true });
+ok(r.status === 200 && r.data?.settled === true && Boolean(r.data?.settledAt), "settle a loan");
+r = await req("GET", "/api/loans/summary");
+ok(r.data?.toReceive === 0 && r.data?.received === 500, "summary updates after settle");
+r = await req("PUT", `/api/loans/${givenId}`, { type: "given", friend: "Sita Devi", amount: 600, date: today });
+ok(r.status === 200 && r.data?.friend === "Sita Devi" && r.data?.settled === false, "PUT /api/loans/:id reopens edited record", JSON.stringify(r.data));
+r = await req("PUT", `/api/loans/${takenId}`, { type: "taken", friend: "Anish", amount: 250, date: today, settled: true });
+ok(r.status === 200 && r.data?.amount === 250 && r.data?.settled === true, "edit and settle in one update");
+r = await req("PUT", "/api/loans/not-an-id/settle", { settled: true });
+ok(r.status === 400, "invalid loan id rejected");
+r = await req("DELETE", `/api/loans/${givenId}`);
+ok(r.status === 200 && r.data?.ok === true, "DELETE /api/loans/:id");
+r = await req("DELETE", `/api/loans/${givenId}`);
+ok(r.status === 404, "delete missing loan -> 404");
+
 // Receipt upload (Cloudinary)
 const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
 const fd = new FormData();
@@ -159,10 +197,12 @@ try {
   const User = (await import("../src/models/User.js")).default;
   const Expense = (await import("../src/models/Expense.js")).default;
   const Budget = (await import("../src/models/Budget.js")).default;
+  const Loan = (await import("../src/models/Loan.js")).default;
   const user = await User.findOne({ email });
   if (user) {
     await Expense.deleteMany({ userId: user._id });
     await Budget.deleteMany({ userId: user._id });
+    await Loan.deleteMany({ userId: user._id });
     await User.deleteOne({ _id: user._id });
   }
   await mongoose.disconnect();

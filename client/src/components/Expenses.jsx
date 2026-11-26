@@ -6,6 +6,7 @@ import Login from "./Login";
 import Home from "./Home";
 import List from "./List";
 import Budget from "./Budget";
+import Loans from "./Loans";
 import Total from "./Total";
 import Profile from "./Profile";
 import AddSheet from "./AddSheet";
@@ -15,6 +16,7 @@ const TABS = [
   ["home", "🏠", "Home"],
   ["expenses", "🧾", "Expenses"],
   ["budget", "🎯", "Budget"],
+  ["loans", "🤝", "Give/Take"],
   ["total", "📊", "Total"],
   ["profile", "👤", "Profile"],
 ];
@@ -67,13 +69,14 @@ export default function Expenses() {
               </div>
             </div>
             <div className="ex-body">
-              {tab === "home" && <Home user={user} items={items} days={days} setDays={setDays} goBudget={() => setTab("budget")} />}
+              {tab === "home" && <Home user={user} items={items} days={days} setDays={setDays} goBudget={() => setTab("budget")} goLoans={() => setTab("loans")} />}
               {tab === "expenses" && <List items={items} del={setDelId} edit={setEditItem} />}
               {tab === "budget" && <Budget items={items} />}
+              {tab === "loans" && <Loans />}
               {tab === "total" && <Total items={items} days={days} setDays={setDays} />}
               {tab === "profile" && <Profile items={items} />}
             </div>
-            <button className="ex-fab" onClick={() => setSheet(true)} aria-label="Add expense">＋</button>
+            {tab !== "loans" && <button className="ex-fab" onClick={() => setSheet(true)} aria-label="Add expense">＋</button>}
             <nav className="ex-nav">
               {TABS.map(([k, i, l]) => (
                 <button key={k} className={tab === k ? "on" : ""} onClick={() => setTab(k)}>

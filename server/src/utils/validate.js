@@ -1,4 +1,5 @@
 export const CATS = ["Travel", "Eating", "Hostel Rent", "Water", "Clothes", "Medicine", "Hair Cut", "Recharge", "Home", "Others"];
+export const LOAN_TYPES = ["given", "taken"];
 
 export const isEmail = (v) => typeof v === "string" && /^\S+@\S+\.\S+$/.test(v.trim());
 export const isDate = (v) => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
@@ -49,4 +50,23 @@ export const validateBudget = (b = {}) => {
     if (v > 0) categories[name] = Math.round(v * 100) / 100;
   }
   return { data: { overall: Math.round(overall * 100) / 100, categories } };
+};
+
+// Money given to a friend (they owe you) or taken from a friend (you owe them).
+export const validateLoan = (b = {}) => {
+  const amount = Math.round(Number(b.amount) * 100) / 100;
+  if (!(amount > 0) || amount > 1e9) return { error: "Enter a valid amount." };
+  if (!LOAN_TYPES.includes(b.type)) return { error: "Choose whether you gave or took the money." };
+  const friend = String(b.friend || "").trim().slice(0, 60);
+  if (!friend) return { error: "Enter your friend's name." };
+  if (!isDate(b.date)) return { error: "Choose a valid date." };
+  let dueDate = null;
+  if (b.dueDate) {
+    if (!isDate(b.dueDate)) return { error: "Choose a valid due date." };
+    dueDate = b.dueDate;
+  }
+  const note = String(b.note || "").trim().slice(0, 200);
+  return {
+    data: { amount, type: b.type, friend, date: b.date, dueDate, note, settled: b.settled === true },
+  };
 };
