@@ -5,6 +5,10 @@ import { getToken, clearToken } from "../services/api";
 const Ctx = createContext(null);
 export const useAuth = () => useContext(Ctx);
 
+// Login is a modal over the current public page. If it was opened from /admin,
+// keep the admin there instead of dropping the user on the normal dashboard.
+const afterLoginPath = () => (/^\/admin\/?$/.test(window.location.pathname) ? "/admin" : "/#/home");
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [ready, setReady] = useState(false);
@@ -28,7 +32,7 @@ export function AuthProvider({ children }) {
       return null;
     }
     setUser(data.user);
-    window.history.replaceState(null, "", "/#/home");
+    window.history.replaceState(null, "", afterLoginPath());
     window.dispatchEvent(new Event("routechange"));
     return data.user;
   };
@@ -38,7 +42,7 @@ export function AuthProvider({ children }) {
     const data = await authApi.verify2FA(challenge.token, code, backup);
     setUser(data.user);
     setChallenge(null);
-    window.history.replaceState(null, "", "/#/home");
+    window.history.replaceState(null, "", afterLoginPath());
     window.dispatchEvent(new Event("routechange"));
     return data.user;
   };
