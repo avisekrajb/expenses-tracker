@@ -425,6 +425,8 @@ if (adminEmail && adminPassword) {
   r = await req("GET", "/api/config");
   ok(r.status === 200 && r.data?.donations?.upiId === "test@upi" && r.data?.donations?.qrUrl === "https://example.test/qr.png",
     "public config exposes the updated donation details", JSON.stringify(r.data?.donations));
+  r = await req("PUT", "/api/admin/settings", { donations: { qrUrl: "\uFEFF" } }, ah);
+  ok(r.status === 200 && r.data?.donations?.qrUrl === "", "BOM-only QR value is treated as empty");
   r = await req("PUT", "/api/admin/settings", {
     contact: { email: "hello@kharcha.app" },
     footer: { copyright: `© ${new Date().getFullYear()} Kharcha. Built with care in Nepal.` },

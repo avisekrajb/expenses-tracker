@@ -2,7 +2,9 @@ import SiteSettings from "../models/SiteSettings.js";
 import { env } from "../config/env.js";
 import { DEFAULT_FEATURES, FEATURE_KEYS } from "../config/features.js";
 
-const clean = (value, max = 500) => String(value ?? "").trim().slice(0, max);
+// Strip a leading byte-order mark (and zero-width space) so a stray editor/export
+// character never becomes a visible value in public config.
+const clean = (value, max = 500) => String(value ?? "").replace(/^[\uFEFF\u200B]+/, "").trim().slice(0, max);
 const donationLimit = (key) => (key === "qrUrl" ? 100000 : 1000);
 
 export async function getSettings() {
@@ -22,7 +24,10 @@ export async function getSettings() {
 
   // Database values win; environment values are the fallback until an admin edits them.
   const donations = Object.fromEntries(
-    Object.keys(env.donation).map((key) => [key, clean(doc.donations?.[key], donationLimit(key)) || env.donation[key] || ""])
+    Object.keys(env.donation).map((key) => {
+      const limit = donationLimit(key);
+      return [key, clean(doc.donations?.[key], limit) || clean(env.donation[key], limit)];
+    })
   );
 
   return {
