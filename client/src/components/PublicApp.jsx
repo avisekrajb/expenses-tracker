@@ -54,6 +54,19 @@ export default function PublicApp() {
     return () => window.clearTimeout(timer);
   }, []);
 
+  // The slide-in menu locks the page and closes on Escape.
+  useEffect(() => {
+    if (!open) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e) => { if (e.key === "Escape") setOpen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = previous;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
   useEffect(() => {
     const sync = () => {
       const next = normalize(window.location.pathname);
@@ -103,23 +116,30 @@ export default function PublicApp() {
         <div className="pub-wrap pub-header-in">
           <Brand config={config} go={go} />
           <button className="pub-theme" onClick={toggle} aria-label="Switch light or dark mode">{dark ? "☀️" : "🌙"}</button>
-          <button className="pub-menu-btn" aria-label="Toggle menu" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+          <button className="pub-menu-btn" aria-label="Toggle menu" aria-expanded={open} aria-controls="main-menu" onClick={() => setOpen((v) => !v)}>
             {open ? "✕" : "☰"}
           </button>
-          <nav className={"pub-nav" + (open ? " open" : "")} aria-label="Main navigation">
-            {LINKS.map(([path, label]) => (
-              <a key={path} href={path} onClick={go(path)} className={pageRoute === path ? "on" : ""}>{label}</a>
-            ))}
-            <a href="/donate" onClick={go("/donate")} className={pageRoute === "/donate" ? "on" : ""}>Donate</a>
-            {showAdmin && <a href="/admin" onClick={go("/admin")} className={route === "/admin" ? "on" : ""}>Admin</a>}
-            <a href="/login" onClick={go("/login")} className={route === "/login" ? "on" : ""}>Login</a>
-            <a href="/signup" onClick={go("/signup")} className={"pub-nav-signup" + (route === "/signup" ? " on" : "")}>Sign up</a>
-            <FeatureGate feature="install" label="Installable app">
-              <InstallButton className="pub-btn tiny ghost" />
-            </FeatureGate>
-          </nav>
         </div>
       </header>
+
+      {open && <div className="pub-nav-scrim" onClick={() => setOpen(false)} aria-hidden="true" />}
+      <nav id="main-menu" className={"pub-nav" + (open ? " open" : "")} aria-label="Main navigation" aria-hidden={!open}>
+        <div className="pub-nav-head">
+          <Brand config={config} go={go} />
+          <button className="pub-nav-close" onClick={() => setOpen(false)} aria-label="Close menu">×</button>
+        </div>
+        {LINKS.map(([path, label]) => (
+          <a key={path} href={path} onClick={go(path)} className={pageRoute === path ? "on" : ""}>{label}</a>
+        ))}
+        <a href="/donate" onClick={go("/donate")} className={pageRoute === "/donate" ? "on" : ""}>Donate</a>
+        {showAdmin && <a href="/admin" onClick={go("/admin")} className={route === "/admin" ? "on" : ""}>Admin</a>}
+        <a href="/login" onClick={go("/login")} className={route === "/login" ? "on" : ""}>Login</a>
+        <a href="/signup" onClick={go("/signup")} className={"pub-nav-signup" + (route === "/signup" ? " on" : "")}>Sign up</a>
+        <FeatureGate feature="install" label="Installable app">
+          <InstallButton className="pub-btn tiny ghost" />
+        </FeatureGate>
+        <div className="pub-nav-foot">Made with care in Kathmandu 🇳🇵</div>
+      </nav>
 
       <main id="main">{page}</main>
 
@@ -152,7 +172,6 @@ export default function PublicApp() {
         </div>
         <div className="pub-wrap pub-bottom">
           {config?.footer?.copyright || `© ${new Date().getFullYear()} Kharcha. Built with care in Nepal.`}
-          {" · "}<a href="/sitemap.xml">Sitemap</a>
         </div>
       </footer>
 
