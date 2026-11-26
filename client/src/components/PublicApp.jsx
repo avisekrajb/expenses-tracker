@@ -82,17 +82,17 @@ export default function PublicApp() {
             <p>Made in Kathmandu for anyone who wants to know where their money went.</p>
           </div>
           <div>
-            <h4>Explore</h4>
+            <h3>Explore</h3>
             {LINKS.map(([path, label]) => <a key={path} href={path} onClick={go(path)}>{label}</a>)}
           </div>
           <div>
-            <h4>Get involved</h4>
+            <h3>Get involved</h3>
             <a href="/donate" onClick={go("/donate")}>Donate to a family</a>
             <a href="/services" onClick={go("/services")}>All features</a>
             <a href="/contact" onClick={go("/contact")}>Contact &amp; support</a>
           </div>
           <div>
-            <h4>Install</h4>
+            <h3>Install</h3>
             <p>Add Kharcha to your home screen for quick, offline access.</p>
             <InstallButton className="pub-btn tiny" />
           </div>
