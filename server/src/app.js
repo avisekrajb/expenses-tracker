@@ -10,6 +10,10 @@ import userRoutes from "./routes/userRoutes.js";
 import budgetRoutes from "./routes/budgetRoutes.js";
 import loanRoutes from "./routes/loanRoutes.js";
 import uploadRoutes from "./routes/uploadRoutes.js";
+import notificationRoutes from "./routes/notificationRoutes.js";
+import donationRoutes from "./routes/donationRoutes.js";
+import cronRoutes from "./routes/cronRoutes.js";
+import { publicConfig } from "./controllers/configController.js";
 import { notFound, errorHandler } from "./middleware/error.js";
 
 const app = express();
@@ -38,7 +42,11 @@ app.get("/api/health", (_req, res) =>
   res.json({ ok: true, service: "kharcha-api", cloudinary: env.cloudinaryEnabled, time: new Date().toISOString() })
 );
 
+app.get("/api/config", publicConfig);
 app.use("/api/auth", authRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/donations", donationRoutes);
+app.use("/api/cron", cronRoutes);
 app.use("/api/expenses", expenseRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/budgets", budgetRoutes);

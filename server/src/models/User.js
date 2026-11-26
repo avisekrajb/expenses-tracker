@@ -7,6 +7,12 @@ const userSchema = new mongoose.Schema(
     password: { type: String, required: true, select: false },
     photo: { type: String, default: null },
     photoPublicId: { type: String, default: null },
+    twoFactor: {
+      enabled: { type: Boolean, default: false },
+      secret: { type: String, default: null, select: false },
+      backupCodes: { type: [String], default: [], select: false },
+      enabledAt: { type: Date, default: null },
+    },
   },
   {
     timestamps: true,
@@ -17,6 +23,10 @@ const userSchema = new mongoose.Schema(
         delete r._id;
         delete r.password;
         delete r.photoPublicId;
+        if (r.twoFactor) {
+          delete r.twoFactor.secret;
+          delete r.twoFactor.backupCodes;
+        }
         return r;
       },
     },

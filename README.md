@@ -5,6 +5,12 @@ Cloudinary image storage, budgets, friend loans (give & take), receipt photos, i
 search/filters, CSV export, tags, recurring expenses, bill splitting, JSON backup and
 bar / line / pie charts (daily to 10-year reports, month navigation, dark mode, profile photo).
 
+**v2.0** adds a responsive public marketing website with full SEO, an installable PWA,
+donation details (eSewa + bank), TOTP two-step verification and real Web Push device
+notifications. Visitors see the public site until they log in; the five-tab dashboard
+is unchanged and still uses hash routing (`#/home`, `#/expenses`, `#/budget`, `#/loans`,
+`#/total`, with Profile in the avatar menu).
+
 ## Features
 
 ### Core
@@ -42,6 +48,18 @@ bar / line / pie charts (daily to 10-year reports, month navigation, dark mode, 
 19. **JSON backup** – download expenses, loans, current budget and the math-check result as one file.
 20. **Toast feedback** – inline success/error messages replace browser alerts.
 
+### Added in v2.0
+21. **Public website** – responsive Home, About, Services, Contact and Donate pages with a Login link. Unauthenticated visitors always land here; logging in opens the private dashboard.
+22. **SEO** – per-route titles, descriptions, keywords, canonical URLs, Open Graph / Twitter cards, JSON-LD structured data, `robots.txt`, `sitemap.xml`, a static social cover and a PWA manifest. The dashboard is `noindex`.
+23. **Installable app** – full PWA manifest (192/512 icons, maskable icons, shortcuts), service worker with offline app shell, and an “Install app” button that uses the native `beforeinstallprompt` flow.
+24. **Donations** – a public Donate page with copy-to-clipboard eSewa ID/account name and bank details (bank, account, branch, SWIFT/IFSC), plus optional QR and a signed-in pledge tracker. Details come from environment variables; placeholders are clearly flagged until replaced.
+25. **Two-step verification** – TOTP authenticator-app setup (QR + manual key), backup codes, a short-lived login challenge, code/backup-code verification and password-protected disable.
+26. **Device notifications** – real Web Push with VAPID keys, subscription stored per device, a Test button, and a secured daily cron that sends deduplicated alerts for budget limits, overdue friend loans and recurring expenses due.
+
+> No SEO tool can guarantee a #1 ranking. This site implements the technical and content
+> groundwork (crawlability, metadata, structured data, fast static assets); search engines
+> decide rankings from relevance, links and freshness.
+
 ## Run locally
 
 ```bash
@@ -71,6 +89,13 @@ Docker alternative: `docker compose up`.
 | `CLOUDINARY_CLOUD_NAME` | Cloudinary cloud name |
 | `CLOUDINARY_API_KEY` | Cloudinary API key |
 | `CLOUDINARY_API_SECRET` | Cloudinary API secret |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | Web Push keys (`npx web-push generate-vapid-keys`) |
+| `VAPID_SUBJECT` | Contact URI for push, e.g. `mailto:hello@kharcha.app` |
+| `CRON_SECRET` | Secret required by `GET /api/cron/notify` |
+| `DONATION_ESEWA_ID` / `DONATION_ESEWA_NAME` | eSewa ID and account name shown on Donate |
+| `DONATION_BANK_NAME` / `DONATION_BANK_ACCOUNT` / `DONATION_BANK_BRANCH` / `DONATION_BANK_SWIFT` | Bank transfer details |
+| `DONATION_QR_URL` | Optional public URL of a donation QR image |
+| `DONATION_NOTE` | Short note shown on the Donate page (replace the placeholder warning with real details) |
 
 `client/.env`:
 
@@ -83,7 +108,11 @@ Docker alternative: `docker compose up`.
 | Method | Path | Purpose |
 |---|---|---|
 | POST | `/api/auth/signup` | Create account |
-| POST | `/api/auth/login` | Log in, returns JWT |
+| POST | `/api/auth/login` | Log in; returns JWT, or a `twoFactorRequired` challenge when 2FA is on |
+| POST | `/api/auth/2fa/verify` | Complete login with `{ challengeToken, code }` or `{ challengeToken, backupCode }` |
+| POST | `/api/auth/2fa/setup` | Start TOTP setup (secret, otpauth URI, QR data URL) |
+| POST | `/api/auth/2fa/enable` | Confirm a 6-digit code; returns 8 backup codes |
+| POST | `/api/auth/2fa/disable` | Turn off 2FA with `{ password, code }` |
 | GET | `/api/auth/me` | Current user |
 | GET | `/api/expenses` | List expenses |
 | POST | `/api/expenses` | Create expense (`tags`, `recurring`, `receipt`, `receiptPublicId` optional) |
@@ -99,6 +128,16 @@ Docker alternative: `docker compose up`.
 | POST | `/api/uploads/receipt` | Upload receipt image (multipart `receipt`) |
 | PUT | `/api/users/me` | Update name / profile photo |
 | DELETE | `/api/users/me/photo` | Remove profile photo |
+| GET | `/api/config` | Public app info, push key and donation details |
+| GET | `/api/notifications/config` | Push enabled flag + VAPID public key |
+| POST | `/api/notifications/subscribe` | Save a device subscription (`{ subscription, device }`) |
+| GET | `/api/notifications/subscriptions` | List this user's devices |
+| DELETE | `/api/notifications/unsubscribe` | Remove a device subscription |
+| POST | `/api/notifications/test` | Send a test push to this user's devices |
+| POST | `/api/notifications/check` | Run alert checks for this user |
+| GET | `/api/cron/notify` | Daily alert cron (Bearer `CRON_SECRET`) |
+| GET / POST | `/api/donations/stats`, `/api/donations` | Public totals / record a signed-in pledge |
+| GET | `/api/donations/me` | Your pledge history and total |
 | GET | `/api/health` | Health + Cloudinary status |
 
 ## Deploy on Vercel (two projects, one repo)
@@ -107,8 +146,11 @@ Docker alternative: `docker compose up`.
 - Framework preset: Other
 - Environment variables: `NODE_ENV=production`, `MONGO_URI`, `MONGODB_DB`,
   `JWT_SECRET`, `CLIENT_URL`, `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`,
-  `CLOUDINARY_API_SECRET`
-- `server/vercel.json` routes every request to `api/index.js` (Express).
+  `CLOUDINARY_API_SECRET`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`,
+  `CRON_SECRET` and all the `DONATION_*` values listed above.
+- `server/vercel.json` routes every request to `api/index.js` (Express) and schedules
+  `GET /api/cron/notify` daily at 06:00 UTC. Vercel sends `Authorization: Bearer $CRON_SECRET`
+  automatically when a `CRON_SECRET` environment variable exists.
 
 **Frontend – project root `client`**
 - Framework preset: Vite, build `npm run build`, output `dist`
@@ -127,7 +169,8 @@ MONGO_URI="mongodb+srv://..." MONGODB_DB=expensetracker_test JWT_SECRET=test \
 The suite covers money math (rounding, exact splits, safe percentages), auth, validation,
 CRUD, summaries, budgets, tags, recurring expenses, friend loans (give/take, settle,
 filters, overdue and summary), Cloudinary uploads, receipts, profile photos, CORS and
-password-protected deletes (60 assertions).
+password-protected deletes, plus v2.0 config, donations, push subscription validation,
+cron auth and the complete TOTP/backup-code lifecycle.
 
 ## Notes
 - Never commit `.env` files (they are in `.gitignore`).

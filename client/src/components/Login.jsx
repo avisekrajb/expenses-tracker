@@ -2,11 +2,13 @@ import React, { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { load, save } from "../utils/helpers";
 
-// Sign up first, then log in with email + password.
+// Sign up first, then log in. Accounts with 2FA ask for a second code.
 export default function Login() {
-  const { login, signup } = useAuth();
+  const { login, signup, challenge, verify2FA, cancel2FA } = useAuth();
   const [mode, setMode] = useState(() => (load("ex_acct", false) ? "login" : "signup"));
   const [f, setF] = useState({ name: "", email: "", pw: "", pw2: "" });
+  const [code, setCode] = useState("");
+  const [backup, setBackup] = useState(false);
   const [err, setErr] = useState("");
   const [ok, setOk] = useState("");
   const [busy, setBusy] = useState(false);
@@ -20,6 +22,7 @@ export default function Login() {
     try {
       if (isLogin) {
         await login(email, f.pw);
+        setBusy(false);
         return;
       }
       if (!f.name.trim()) throw new Error("Enter your name.");
@@ -35,6 +38,34 @@ export default function Login() {
     }
     setBusy(false);
   };
+
+  const verify = async () => {
+    setBusy(true); setErr("");
+    try { await verify2FA(code.trim(), backup); }
+    catch (e) { setErr(e.message); }
+    setBusy(false);
+  };
+
+  if (challenge) {
+    return (
+      <div className="ex-login">
+        <div className="ex-logo">🔐</div>
+        <h1>Two-step check</h1>
+        <p>Enter the 6-digit code for {challenge.email}</p>
+        <div className="ex-card ex-form">
+          <input inputMode={backup ? "text" : "numeric"} placeholder={backup ? "Backup code" : "6-digit authenticator code"}
+            value={code} onChange={(e) => { setCode(e.target.value); setErr(""); }}
+            onKeyDown={(e) => e.key === "Enter" && verify()} autoFocus />
+          {err && <div className="ex-err">{err}</div>}
+          <button className="ex-btn" disabled={busy} onClick={verify}>{busy ? "Checking…" : "Verify & continue"}</button>
+          <button className="ex-link" onClick={() => { setBackup((v) => !v); setCode(""); setErr(""); }}>
+            {backup ? "Use my authenticator code" : "Lost your phone? Use a backup code"}
+          </button>
+          <button className="ex-link" onClick={() => { setCode(""); cancel2FA(); }}>Back to login</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="ex-login">

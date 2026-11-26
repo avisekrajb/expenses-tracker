@@ -1,5 +1,6 @@
 /* End-to-end smoke test for the Kharcha API. Run with the server on BASE. */
 import { round2, sumMoney, splitMoney, pct, deltaPct } from "../../client/src/utils/money.js";
+import { generate as generateTotp } from "otplib";
 
 const BASE = process.env.BASE || "http://localhost:5055";
 const email = `test_${Date.now()}@kharcha.test`;
@@ -19,7 +20,7 @@ const req = async (method, path, body, headers = {}) => {
     opts.headers["Content-Type"] = "application/json";
     opts.body = JSON.stringify(body);
   }
-  if (token) opts.headers.Authorization = `Bearer ${token}`;
+  if (token && !opts.headers.Authorization) opts.headers.Authorization = `Bearer ${token}`;
   const res = await fetch(BASE + path, opts);
   const text = await res.text();
   let data;
@@ -210,6 +211,98 @@ ok(r.status === 200 && profile?.name === "Renamed User" && /^https:\/\/res\.clou
 r = await req("DELETE", "/api/users/me/photo");
 ok(r.status === 200 && r.data?.photo === null, "DELETE /api/users/me/photo");
 
+// ---------- v2.0: public config, donations, notifications, 2FA ----------
+const mainToken = token;
+
+r = await req("GET", "/api/config");
+ok(r.status === 200 && r.data?.app === "Kharcha" && r.data?.version === "2.0.0", "GET /api/config (public)", JSON.stringify(r.data));
+ok(r.data?.push?.enabled === true && Boolean(r.data?.push?.publicKey), "config advertises Web Push keys");
+ok(typeof r.data?.donations?.esewaId === "string", "config exposes donation details");
+
+r = await req("GET", "/api/donations/stats");
+ok(r.status === 200 && typeof r.data?.total === "number" && typeof r.data?.count === "number", "GET /api/donations/stats (public)");
+token = "";
+const anonDonation = await req("POST", "/api/donations", { amount: 100, method: "esewa" });
+token = mainToken;
+ok(anonDonation.status === 401, "donations require auth");
+r = await req("POST", "/api/donations", { amount: 0, method: "esewa" });
+ok(r.status === 400, "zero donation rejected");
+r = await req("POST", "/api/donations", { amount: 500, method: "esewa", note: "Test pledge" });
+ok(r.status === 201 && r.data?.amount === 500, "POST /api/donations", JSON.stringify(r.data));
+r = await req("GET", "/api/donations/me");
+ok(r.status === 200 && r.data?.count === 1 && r.data?.total === 500, "GET /api/donations/me totals pledges", JSON.stringify(r.data));
+
+r = await req("GET", "/api/notifications/config");
+ok(r.status === 200 && r.data?.enabled === true && Boolean(r.data?.publicKey), "GET /api/notifications/config");
+r = await req("POST", "/api/notifications/subscribe", { subscription: { endpoint: "not-a-url", keys: {} } });
+ok(r.status === 400, "invalid push subscription rejected");
+r = await req("POST", "/api/notifications/subscribe", {
+  subscription: { endpoint: "https://example.test/push/test-device", keys: { p256dh: "abc", auth: "def" } },
+  device: "E2E test device",
+});
+ok(r.status === 200 && r.data?.ok === true, "POST /api/notifications/subscribe");
+r = await req("GET", "/api/notifications/subscriptions");
+ok(r.status === 200 && r.data?.length === 1 && r.data[0].device === "E2E test device", "GET /api/notifications/subscriptions", JSON.stringify(r.data));
+r = await req("POST", "/api/notifications/test");
+ok(r.status === 200 && r.data?.ok === true && typeof r.data?.sent === "number", "POST /api/notifications/test");
+r = await req("POST", "/api/notifications/check");
+ok(r.status === 200 && typeof r.data?.sent === "number", "POST /api/notifications/check computes alerts");
+r = await req("GET", "/api/cron/notify");
+ok(r.status === 401, "cron route rejects missing secret");
+if (process.env.CRON_SECRET) {
+  r = await req("GET", "/api/cron/notify", undefined, { Authorization: `Bearer ${process.env.CRON_SECRET}` });
+  ok(r.status === 200 && r.data?.ok === true, "cron route accepts secret", JSON.stringify(r.data));
+}
+r = await req("DELETE", "/api/notifications/unsubscribe", { endpoint: "https://example.test/push/test-device" });
+ok(r.status === 200 && r.data?.ok === true, "DELETE /api/notifications/unsubscribe");
+r = await req("GET", "/api/notifications/subscriptions");
+ok(r.status === 200 && r.data?.length === 0, "subscription removed");
+
+// TOTP 2FA full lifecycle on a second account.
+const twofaEmail = `2fa_${Date.now()}@kharcha.test`;
+r = await req("POST", "/api/auth/signup", { name: "2FA User", email: twofaEmail, password });
+ok(r.status === 201, "signup second user for 2FA");
+r = await req("POST", "/api/auth/login", { email: twofaEmail, password });
+token = r.data?.token;
+ok(Boolean(token), "login before enabling 2FA");
+r = await req("POST", "/api/auth/2fa/setup");
+ok(r.status === 200 && /^[A-Z2-7]{32}$/.test(r.data?.secret || "") && r.data?.qr?.startsWith("data:image/png"), "POST /api/auth/2fa/setup returns secret + QR", JSON.stringify({ ...r.data, qr: r.data?.qr?.slice(0, 20) }));
+const totpSecret = r.data?.secret;
+const totpCode = await generateTotp({ secret: totpSecret });
+r = await req("POST", "/api/auth/2fa/enable", { code: totpCode });
+ok(r.status === 200 && r.data?.user?.twoFactor?.enabled === true && r.data?.backupCodes?.length === 8, "POST /api/auth/2fa/enable", JSON.stringify(r.data?.user?.twoFactor));
+const backupCode = r.data?.backupCodes?.[0];
+token = "";
+r = await req("POST", "/api/auth/login", { email: twofaEmail, password });
+ok(r.status === 200 && r.data?.twoFactorRequired === true && Boolean(r.data?.challengeToken), "login returns 2FA challenge instead of token", JSON.stringify(r.data));
+const challengeToken = r.data?.challengeToken;
+r = await req("POST", "/api/auth/2fa/verify", { challengeToken, code: "000000" });
+ok(r.status === 400, "wrong 2FA code rejected");
+r = await req("POST", "/api/auth/2fa/verify", { challengeToken, backupCode });
+ok(r.status === 200 && Boolean(r.data?.token), "2FA login accepted with backup code");
+token = r.data?.token;
+ok(Boolean((await req("GET", "/api/auth/me")).data?.email === twofaEmail), "2FA token works for protected routes");
+// Backup codes are one-time.
+r = await req("POST", "/api/auth/login", { email: twofaEmail, password });
+const challenge2 = r.data?.challengeToken;
+r = await req("POST", "/api/auth/2fa/verify", { challengeToken: challenge2, backupCode });
+ok(r.status === 400, "used backup code cannot be reused");
+r = await req("POST", "/api/auth/2fa/verify", { challengeToken: challenge2, code: await generateTotp({ secret: totpSecret }) });
+ok(r.status === 200 && Boolean(r.data?.token), "2FA login accepted with fresh TOTP code");
+token = "";
+r = await req("POST", "/api/auth/login", { email: twofaEmail, password });
+const challenge3 = r.data?.challengeToken;
+r = await req("POST", "/api/auth/2fa/verify", { challengeToken: challenge3, code: await generateTotp({ secret: totpSecret }) });
+token = r.data?.token;
+r = await req("POST", "/api/auth/2fa/disable", { password: "wrong", code: await generateTotp({ secret: totpSecret }) });
+ok(r.status === 400, "disable 2FA rejects wrong password");
+r = await req("POST", "/api/auth/2fa/disable", { password, code: await generateTotp({ secret: totpSecret }) });
+ok(r.status === 200 && r.data?.user?.twoFactor?.enabled === false, "POST /api/auth/2fa/disable", JSON.stringify(r.data?.user?.twoFactor));
+token = "";
+r = await req("POST", "/api/auth/login", { email: twofaEmail, password });
+ok(r.status === 200 && Boolean(r.data?.token) && !r.data?.twoFactorRequired, "login is normal again after disabling 2FA");
+token = mainToken;
+
 // Cleanup
 try {
   const mongoose = (await import("mongoose")).default;
@@ -218,15 +311,22 @@ try {
   const Expense = (await import("../src/models/Expense.js")).default;
   const Budget = (await import("../src/models/Budget.js")).default;
   const Loan = (await import("../src/models/Loan.js")).default;
-  const user = await User.findOne({ email });
-  if (user) {
-    await Expense.deleteMany({ userId: user._id });
-    await Budget.deleteMany({ userId: user._id });
-    await Loan.deleteMany({ userId: user._id });
-    await User.deleteOne({ _id: user._id });
+  const Donation = (await import("../src/models/Donation.js")).default;
+  const PushSubscription = (await import("../src/models/PushSubscription.js")).default;
+  const NotificationLog = (await import("../src/models/NotificationLog.js")).default;
+  const users = await User.find({ email: { $in: [email, twofaEmail] } });
+  const ids = users.map((u) => u._id);
+  if (ids.length) {
+    await Expense.deleteMany({ userId: { $in: ids } });
+    await Budget.deleteMany({ userId: { $in: ids } });
+    await Loan.deleteMany({ userId: { $in: ids } });
+    await Donation.deleteMany({ userId: { $in: ids } });
+    await PushSubscription.deleteMany({ userId: { $in: ids } });
+    await NotificationLog.deleteMany({ userId: { $in: ids } });
+    await User.deleteMany({ _id: { $in: ids } });
   }
   await mongoose.disconnect();
-  console.log("  cleanup  test user and data removed");
+  console.log("  cleanup  test users and data removed");
 } catch (e) {
   console.log("  cleanup warning:", e.message);
 }

@@ -1,7 +1,7 @@
 import User from "../models/User.js";
 import { asyncHandler, HttpError } from "../middleware/error.js";
 import { hashPassword, comparePassword } from "../utils/hashPw.js";
-import { signToken } from "../utils/jwt.js";
+import { signToken, signChallenge } from "../utils/jwt.js";
 import { validateSignup } from "../utils/validate.js";
 import { uploadImage, destroyImage } from "../config/cloudinary.js";
 
@@ -18,6 +18,9 @@ export const login = asyncHandler(async (req, res) => {
   const email = String(req.body?.email || "").trim().toLowerCase();
   const user = await User.findOne({ email }).select("+password");
   if (!user || !(await comparePassword(req.body?.password, user.password))) throw new HttpError(401, "Wrong email or password.");
+  if (user.twoFactor?.enabled) {
+    return res.json({ twoFactorRequired: true, challengeToken: signChallenge(user.id), email: user.email });
+  }
   res.json({ token: signToken(user.id), user });
 });
 

@@ -4,8 +4,14 @@ export const signup = (name, email, password) => api.post("/auth/signup", { name
 
 export const login = async (email, password) => {
   const { data } = await api.post("/auth/login", { email, password });
+  if (data.token) setToken(data.token);
+  return data;
+};
+
+export const verify2FA = async (challengeToken, code, backup = false) => {
+  const { data } = await api.post("/auth/2fa/verify", { challengeToken, [backup ? "backupCode" : "code"]: code });
   setToken(data.token);
-  return data.user;
+  return data;
 };
 
 export const logout = () => clearToken();

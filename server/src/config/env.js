@@ -25,5 +25,20 @@ export const env = {
   CLOUDINARY_API_KEY: apiKey,
   CLOUDINARY_API_SECRET: apiSecret,
   cloudinaryEnabled: Boolean(cloudName && apiKey && apiSecret),
+  VAPID_PUBLIC_KEY: process.env.VAPID_PUBLIC_KEY || "",
+  VAPID_PRIVATE_KEY: process.env.VAPID_PRIVATE_KEY || "",
+  VAPID_SUBJECT: process.env.VAPID_SUBJECT || "mailto:hello@kharcha.app",
+  CRON_SECRET: process.env.CRON_SECRET || "",
+  donation: {
+    esewaId: process.env.DONATION_ESEWA_ID || "",
+    esewaName: process.env.DONATION_ESEWA_NAME || "",
+    bankName: process.env.DONATION_BANK_NAME || "",
+    bankAccount: process.env.DONATION_BANK_ACCOUNT || "",
+    bankBranch: process.env.DONATION_BANK_BRANCH || "",
+    bankSwift: process.env.DONATION_BANK_SWIFT || "",
+    qrUrl: process.env.DONATION_QR_URL || "",
+    note: process.env.DONATION_NOTE || "",
+  },
 };
+env.pushEnabled = Boolean(env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY);
 env.isProd = env.NODE_ENV === "production";

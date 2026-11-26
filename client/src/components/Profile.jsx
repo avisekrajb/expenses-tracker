@@ -8,6 +8,9 @@ import { summary as loanSummary, list as loanList } from "../services/loans";
 import { fmt, r2, todayStr } from "../utils/helpers";
 import { sumMoney } from "../utils/money";
 import { CATS } from "../utils/categories";
+import { useInstallPrompt } from "../utils/pwa";
+import TwoFactorSettings from "./TwoFactorSettings";
+import NotificationSettings from "./NotificationSettings";
 
 export default function Profile({ items, goLoans }) {
   const { user, setUser, logout } = useAuth();
@@ -17,6 +20,7 @@ export default function Profile({ items, goLoans }) {
   const [askOut, setAskOut] = useState(false);
   const [loans, setLoans] = useState(null);
   const [budget, setBudget] = useState(null);
+  const { canInstall, install } = useInstallPrompt();
   const month = todayStr().slice(0, 7);
 
   useEffect(() => {
@@ -134,6 +138,28 @@ export default function Profile({ items, goLoans }) {
           <div className="ex-profile-row"><small>Email</small><span>{user?.email}</span></div>
           <div className="ex-profile-row"><small>Member since</small><span>{since}</span></div>
           <div className="ex-profile-row"><small>Account ID</small><span>{String(user?.id || "").slice(0, 8)}</span></div>
+        </div>
+      </div>
+
+      <div className="ex-profile-sec">
+        <h3>Security</h3>
+        <TwoFactorSettings />
+      </div>
+
+      <div className="ex-profile-sec">
+        <h3>Alerts</h3>
+        <NotificationSettings />
+      </div>
+
+      <div className="ex-profile-sec">
+        <h3>Kharcha app</h3>
+        <div className="ex-card ex-app-card">
+          {canInstall ? (
+            <button className="ex-btn plain" onClick={install}>⬇️ Install Kharcha on this device</button>
+          ) : (
+            <small>Use your browser menu to “Add to Home screen” for quick offline access.</small>
+          )}
+          <button className="ex-btn plain" onClick={() => { window.location.href = "/donate"; }}>💛 Support a family in need</button>
         </div>
       </div>
 
