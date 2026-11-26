@@ -30,7 +30,7 @@ function Root() {
   if (!ready) return <div className="pub-loading"><div className="ex-logo">₨</div><p>Loading Kharcha…</p></div>;
   if (path === "/admin") return user ? <AdminApp /> : <PublicApp />;
   // Signed-in users still need public pages (notably Donate, to attach a receipt).
-  const publicPage = ["/about", "/services", "/contact", "/donate", "/login"].includes(path);
+  const publicPage = ["/about", "/services", "/contact", "/donate", "/login", "/signup"].includes(path);
   if (user && publicPage) return <PublicApp />;
   return user ? <Dashboard /> : <PublicApp />;
 }

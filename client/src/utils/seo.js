@@ -43,6 +43,13 @@ export const PAGES = {
     schema: "WebPage",
     noindex: true,
   },
+  "/signup": {
+    title: "Create your Kharcha account | Free Expense Tracker",
+    description: "Sign up for Kharcha to track Kathmandu expenses, budgets, receipts and friend loans in Nepali rupees.",
+    keywords: "Kharcha signup, free expense tracker Nepal",
+    schema: "WebPage",
+    noindex: true,
+  },
   "/app": {
     title: "Dashboard | Kharcha",
     description: "Your private Kharcha dashboard.",

@@ -8,11 +8,13 @@ import About from "./About";
 import Services from "./Services";
 import Contact from "./Contact";
 import Donate from "./Donate";
-import Login from "./Login";
+import AuthModal from "./AuthModal";
 import InstallButton from "./InstallButton";
 import FeatureGate from "./FeatureGate";
 
-const ROUTES = ["/", "/about", "/services", "/contact", "/donate", "/login", "/admin"];
+const ROUTES = ["/", "/about", "/services", "/contact", "/donate", "/login", "/signup", "/admin"];
+const AUTH_ROUTES = ["/login", "/signup", "/admin"];
+const isAuthRoute = (path) => AUTH_ROUTES.includes(path);
 const normalize = (p) => {
   const clean = (p || "/").replace(/\/+$/, "") || "/";
   return ROUTES.includes(clean) ? clean : "/";
@@ -35,7 +37,10 @@ function Brand({ config, go }) {
 }
 
 export default function PublicApp() {
-  const [route, setRoute] = useState(() => normalize(window.location.pathname));
+  const initial = normalize(window.location.pathname);
+  const [route, setRoute] = useState(initial);
+  // Keep the last public page behind the auth modal instead of replacing it.
+  const [pageRoute, setPageRoute] = useState(isAuthRoute(initial) ? "/" : initial);
   const [open, setOpen] = useState(false);
   // The neon "snake" border switches on after 10 seconds and then keeps running.
   const [neon, setNeon] = useState(false);
@@ -50,7 +55,12 @@ export default function PublicApp() {
   }, []);
 
   useEffect(() => {
-    const sync = () => setRoute(normalize(window.location.pathname));
+    const sync = () => {
+      const next = normalize(window.location.pathname);
+      setRoute(next);
+      setOpen(false);
+      if (!isAuthRoute(next)) setPageRoute(next);
+    };
     window.addEventListener("popstate", sync);
     window.addEventListener("routechange", sync);
     return () => {
@@ -64,8 +74,18 @@ export default function PublicApp() {
     setOpen(false);
     if (path !== window.location.pathname) window.history.pushState(null, "", path);
     setRoute(path);
+    if (!isAuthRoute(path)) {
+      setPageRoute(path);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
     window.dispatchEvent(new Event("routechange"));
-    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const closeAuth = () => go(pageRoute)();
+  const authMode = route === "/signup" ? "signup" : "login";
+  const switchAuthMode = (mode) => {
+    const path = mode === "signup" ? "/signup" : "/login";
+    if (route !== path) go(path)();
   };
 
   const showAdmin = Boolean(user?.isAdmin || isAdmin);
@@ -75,9 +95,7 @@ export default function PublicApp() {
     "/services": <Services go={go} />,
     "/contact": <Contact contact={config?.contact} />,
     "/donate": <Donate go={go} />,
-    "/login": <div className="pub-login-wrap"><Login /></div>,
-    "/admin": <div className="pub-login-wrap"><Login /></div>,
-  }[route];
+  }[pageRoute] || <Landing go={go} />;
 
   return (
     <div className={"pub-root" + (dark ? " dark" : "")}>
@@ -90,11 +108,12 @@ export default function PublicApp() {
           </button>
           <nav className={"pub-nav" + (open ? " open" : "")} aria-label="Main navigation">
             {LINKS.map(([path, label]) => (
-              <a key={path} href={path} onClick={go(path)} className={route === path ? "on" : ""}>{label}</a>
+              <a key={path} href={path} onClick={go(path)} className={pageRoute === path ? "on" : ""}>{label}</a>
             ))}
-            <a href="/donate" onClick={go("/donate")} className={route === "/donate" ? "on" : ""}>Donate</a>
+            <a href="/donate" onClick={go("/donate")} className={pageRoute === "/donate" ? "on" : ""}>Donate</a>
             {showAdmin && <a href="/admin" onClick={go("/admin")} className={route === "/admin" ? "on" : ""}>Admin</a>}
-            <a href="/login" onClick={go("/login")} className="pub-nav-login">Login</a>
+            <a href="/login" onClick={go("/login")} className={route === "/login" ? "on" : ""}>Login</a>
+            <a href="/signup" onClick={go("/signup")} className={"pub-nav-signup" + (route === "/signup" ? " on" : "")}>Sign up</a>
             <FeatureGate feature="install" label="Installable app">
               <InstallButton className="pub-btn tiny ghost" />
             </FeatureGate>
@@ -136,6 +155,10 @@ export default function PublicApp() {
           {" · "}<a href="/sitemap.xml">Sitemap</a>
         </div>
       </footer>
+
+      {isAuthRoute(route) && (
+        <AuthModal mode={authMode} onClose={closeAuth} onModeChange={switchAuthMode} />
+      )}
     </div>
   );
 }
