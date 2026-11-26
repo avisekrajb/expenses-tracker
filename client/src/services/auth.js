@@ -2,10 +2,24 @@ import api, { setToken, clearToken } from "./api";
 
 export const signup = (name, email, password) => api.post("/auth/signup", { name, email, password }).then((r) => r.data);
 
-export const login = async (email, password) => {
-  const { data } = await api.post("/auth/login", { email, password });
+const finishLogin = (response) => {
+  const { data } = response;
   if (data.token) setToken(data.token);
   return data;
+};
+
+// Paste can add spaces, NBSP or zero-width characters. Try the exact value
+// first, then retry with those invisible edges removed — never the reverse.
+const trimPastedSecret = (value) => String(value ?? "").replace(/^[\s\u00A0\uFEFF\u200B\u200C\u200D]+|[\s\u00A0\uFEFF\u200B\u200C\u200D]+$/g, "");
+
+export const login = async (email, password) => {
+  try {
+    return finishLogin(await api.post("/auth/login", { email, password }));
+  } catch (e) {
+    const cleaned = trimPastedSecret(password);
+    if (e.response?.status !== 401 || cleaned === password) throw e;
+    return finishLogin(await api.post("/auth/login", { email, password: cleaned }));
+  }
 };
 
 export const verify2FA = async (challengeToken, code, backup = false) => {

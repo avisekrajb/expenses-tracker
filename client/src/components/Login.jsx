@@ -83,13 +83,16 @@ export default function Login({ initialMode, onModeChange }) {
         <form onSubmit={(e) => { e.preventDefault(); submit(); }}>
           <h3>{isLogin ? "Log in" : "Create your account"}</h3>
           {ok && isLogin && <div className="ex-ok">{ok}</div>}
-          {!isLogin && <input placeholder="Full name" autoComplete="name" aria-label="Full name" value={f.name} onChange={set("name")} />}
-          <input type="email" placeholder="Email" autoComplete="email" aria-label="Email address" required value={f.email} onChange={set("email")} />
+          {!isLogin && <input placeholder="Full name" autoComplete="name" autoCapitalize="words" aria-label="Full name" value={f.name} onChange={set("name")} />}
+          <input type="email" placeholder="Email" autoComplete="email" inputMode="email" autoCapitalize="none" autoCorrect="off" spellCheck={false}
+            aria-label="Email address" required value={f.email} onChange={set("email")} />
           <input type="password" placeholder="Password" autoComplete={isLogin ? "current-password" : "new-password"}
+            autoCapitalize="none" autoCorrect="off" spellCheck={false}
             aria-label="Password" required value={f.pw} onChange={set("pw")} />
           {!isLogin && (
-            <input type="password" placeholder="Confirm password" autoComplete="new-password" aria-label="Confirm password"
-              required value={f.pw2} onChange={set("pw2")} />
+            <input type="password" placeholder="Confirm password" autoComplete="new-password"
+              autoCapitalize="none" autoCorrect="off" spellCheck={false}
+              aria-label="Confirm password" required value={f.pw2} onChange={set("pw2")} />
           )}
           {err && <div className="ex-err" role="alert">{err}</div>}
           <button className="ex-btn" type="submit" disabled={busy}>{busy ? "Please wait…" : isLogin ? "Log in" : "Sign up"}</button>
