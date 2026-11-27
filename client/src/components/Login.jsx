@@ -23,7 +23,7 @@ export default function Login({ initialMode, onModeChange }) {
   };
 
   const submit = async () => {
-    const email = f.email.trim().toLowerCase();
+    const email = f.email.replace(/[\u00A0\uFEFF\u200B\u200C\u200D]/g, "").trim().toLowerCase();
     if (!/^\S+@\S+\.\S+$/.test(email)) return setErr("Enter a valid email address.");
     setBusy(true);
     setErr("");

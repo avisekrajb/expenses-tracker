@@ -17,7 +17,8 @@ export const login = async (email, password) => {
     return finishLogin(await api.post("/auth/login", { email, password }));
   } catch (e) {
     const cleaned = trimPastedSecret(password);
-    if (e.response?.status !== 401 || cleaned === password) throw e;
+    // The axios interceptor normalises errors to Error(message), so match on the message.
+    if (!/wrong email or password/i.test(e.message) || cleaned === password) throw e;
     return finishLogin(await api.post("/auth/login", { email, password: cleaned }));
   }
 };
