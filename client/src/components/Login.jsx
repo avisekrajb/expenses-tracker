@@ -80,7 +80,7 @@ export default function Login({ initialMode, onModeChange }) {
       <h1>Kharcha</h1>
       <p>{isLogin ? "Welcome back" : "Sign up to track every rupee you spend in Kathmandu"}</p>
       <div className="ex-card ex-form">
-        <form onSubmit={(e) => { e.preventDefault(); submit(); }}>
+        <form noValidate onSubmit={(e) => { e.preventDefault(); submit(); }}>
           <h3>{isLogin ? "Log in" : "Create your account"}</h3>
           {ok && isLogin && <div className="ex-ok">{ok}</div>}
           {!isLogin && <input placeholder="Full name" autoComplete="name" autoCapitalize="words" aria-label="Full name" value={f.name} onChange={set("name")} />}
