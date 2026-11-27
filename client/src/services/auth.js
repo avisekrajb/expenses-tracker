@@ -8,9 +8,13 @@ const finishLogin = (response) => {
   return data;
 };
 
-// Paste can add spaces, NBSP or zero-width characters. Try the exact value
-// first, then retry with those invisible edges removed — never the reverse.
-const trimPastedSecret = (value) => String(value ?? "").replace(/^[\s\u00A0\uFEFF\u200B\u200C\u200D]+|[\s\u00A0\uFEFF\u200B\u200C\u200D]+$/g, "");
+// Paste/keyboards can change the password with spaces, NBSP, zero-width
+// characters, lookalike dashes or full-width letters. Try the exact value first,
+// then retry with a normalised copy — never the reverse.
+const trimPastedSecret = (value) => String(value ?? "")
+  .normalize("NFKC")
+  .replace(/[\u2010-\u2015\u2212\uFF0D]/g, "-")
+  .replace(/^[\s\u00A0\uFEFF\u200B\u200C\u200D]+|[\s\u00A0\uFEFF\u200B\u200C\u200D]+$/g, "");
 
 export const login = async (email, password) => {
   try {

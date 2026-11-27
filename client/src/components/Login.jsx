@@ -8,6 +8,7 @@ export default function Login({ initialMode, onModeChange }) {
   const [mode, setMode] = useState(() => initialMode || (load("ex_acct", false) ? "login" : "signup"));
   const [f, setF] = useState({ name: "", email: "", pw: "", pw2: "" });
   const [code, setCode] = useState("");
+  const [showPw, setShowPw] = useState(false);
   const [backup, setBackup] = useState(false);
   const [err, setErr] = useState("");
   const [ok, setOk] = useState("");
@@ -86,9 +87,13 @@ export default function Login({ initialMode, onModeChange }) {
           {!isLogin && <input placeholder="Full name" autoComplete="name" autoCapitalize="words" aria-label="Full name" value={f.name} onChange={set("name")} />}
           <input type="email" placeholder="Email" autoComplete="email" inputMode="email" autoCapitalize="none" autoCorrect="off" spellCheck={false}
             aria-label="Email address" required value={f.email} onChange={set("email")} />
-          <input type="password" placeholder="Password" autoComplete={isLogin ? "current-password" : "new-password"}
-            autoCapitalize="none" autoCorrect="off" spellCheck={false}
-            aria-label="Password" required value={f.pw} onChange={set("pw")} />
+          <div className="ex-pw-wrap">
+            <input type={showPw ? "text" : "password"} placeholder="Password" autoComplete={isLogin ? "current-password" : "new-password"}
+              autoCapitalize="none" autoCorrect="off" spellCheck={false}
+              aria-label="Password" required value={f.pw} onChange={set("pw")} />
+            <button type="button" className="ex-pw-toggle" aria-label={showPw ? "Hide password" : "Show password"}
+              onClick={() => setShowPw((v) => !v)}>{showPw ? "Hide" : "Show"}</button>
+          </div>
           {!isLogin && (
             <input type="password" placeholder="Confirm password" autoComplete="new-password"
               autoCapitalize="none" autoCorrect="off" spellCheck={false}

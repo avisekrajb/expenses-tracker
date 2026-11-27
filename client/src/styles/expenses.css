@@ -75,6 +75,9 @@ input:focus{border-color:#6d5dfc}
 .ex-mnav button{width:42px;height:42px;border:0;border-radius:14px;background:#f2f3fb;font-size:22px;color:#6d5dfc}
 .ex-mnav button:disabled{opacity:.35}
 .ex-ok{color:#16a34a;font-size:13px}
+.ex-pw-wrap{position:relative}
+.ex-pw-wrap input{padding-right:58px}
+.ex-pw-toggle{position:absolute;right:6px;top:50%;transform:translateY(-50%);border:0;background:none;color:#6d5dfc;font-size:12px;font-weight:800;cursor:pointer;padding:8px}
 .ex-form h3{margin:0 0 2px;text-align:left}
 .ex-btn:disabled{opacity:.6}
 .ex-topr .ex-theme{background:#f2f3fb;font-size:16px}
