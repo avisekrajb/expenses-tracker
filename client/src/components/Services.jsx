@@ -32,7 +32,7 @@ const GROUPS = [
   {
     icon: "🔐", title: "Safe and available",
     items: [
-      ["Two-step verification", "Authenticator app codes plus backup codes."],
+      ["Simple password login", "One secure password takes you straight to your dashboard."],
       ["Device notifications", "Web Push works even when the tab is closed."],
       ["Installable app", "Add Kharcha to your home screen and use it offline."],
       ["JSON & CSV export", "Your data is always yours to take."],

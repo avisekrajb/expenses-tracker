@@ -1,7 +1,6 @@
 /* End-to-end smoke test for the Kharcha API. Run with the server on BASE. */
 import "dotenv/config";
 import { round2, sumMoney, splitMoney, pct, deltaPct } from "../../client/src/utils/money.js";
-import { generate as generateTotp } from "otplib";
 
 const BASE = process.env.BASE || "http://localhost:5055";
 const email = `test_${Date.now()}@kharcha.test`;
@@ -213,14 +212,14 @@ ok(r.status === 200 && profile?.name === "Renamed User" && /^https:\/\/res\.clou
 r = await req("DELETE", "/api/users/me/photo");
 ok(r.status === 200 && r.data?.photo === null, "DELETE /api/users/me/photo");
 
-// ---------- v2.0: public config, donations, notifications, 2FA ----------
+// ---------- v2.0: public config, donations, notifications ----------
 const mainToken = token;
 
 r = await req("GET", "/api/config");
-ok(r.status === 200 && r.data?.app === "Kharcha" && r.data?.version === "2.2.0", "GET /api/config (public)", JSON.stringify(r.data));
+ok(r.status === 200 && r.data?.app === "Kharcha" && r.data?.version === "2.3.0", "GET /api/config (public)", JSON.stringify(r.data));
 ok(r.data?.push?.enabled === true && Boolean(r.data?.push?.publicKey), "config advertises Web Push keys");
 ok(typeof r.data?.donations?.esewaId === "string" && Boolean(r.data?.contact?.email), "config exposes donation + contact details");
-ok(Object.keys(r.data?.features || {}).length === 12 && r.data?.features?.expenses === true,
+ok(Object.keys(r.data?.features || {}).length === 11 && r.data?.features?.expenses === true && !("twoFactor" in (r.data?.features || {})),
   "config advertises every feature switch", JSON.stringify(r.data?.features));
 
 r = await req("GET", "/api/donations/stats");
@@ -270,49 +269,16 @@ ok(r.status === 200 && r.data?.ok === true, "DELETE /api/notifications/unsubscri
 r = await req("GET", "/api/notifications/subscriptions");
 ok(r.status === 200 && r.data?.length === 0, "subscription removed");
 
-// TOTP 2FA full lifecycle on a second account.
-const twofaEmail = `2fa_${Date.now()}@kharcha.test`;
-r = await req("POST", "/api/auth/signup", { name: "2FA User", email: twofaEmail, password });
-ok(r.status === 201, "signup second user for 2FA");
-r = await req("POST", "/api/auth/login", { email: twofaEmail, password });
+// Login always issues a token directly — no second-step challenge.
+const secondEmail = `plain_${Date.now()}@kharcha.test`;
+r = await req("POST", "/api/auth/signup", { name: "Second User", email: secondEmail, password });
+ok(r.status === 201, "signup second user");
+r = await req("POST", "/api/auth/login", { email: secondEmail, password });
+ok(r.status === 200 && Boolean(r.data?.token) && !r.data?.twoFactorRequired, "login goes straight to a token", JSON.stringify(r.data));
 token = r.data?.token;
-ok(Boolean(token), "login before enabling 2FA");
-r = await req("POST", "/api/auth/2fa/setup");
-ok(r.status === 200 && /^[A-Z2-7]{32}$/.test(r.data?.secret || "") && r.data?.qr?.startsWith("data:image/png"), "POST /api/auth/2fa/setup returns secret + QR", JSON.stringify({ ...r.data, qr: r.data?.qr?.slice(0, 20) }));
-const totpSecret = r.data?.secret;
-const totpCode = await generateTotp({ secret: totpSecret });
-r = await req("POST", "/api/auth/2fa/enable", { code: totpCode });
-ok(r.status === 200 && r.data?.user?.twoFactor?.enabled === true && r.data?.backupCodes?.length === 8, "POST /api/auth/2fa/enable", JSON.stringify(r.data?.user?.twoFactor));
-const backupCode = r.data?.backupCodes?.[0];
-token = "";
-r = await req("POST", "/api/auth/login", { email: twofaEmail, password });
-ok(r.status === 200 && r.data?.twoFactorRequired === true && Boolean(r.data?.challengeToken), "login returns 2FA challenge instead of token", JSON.stringify(r.data));
-const challengeToken = r.data?.challengeToken;
-r = await req("POST", "/api/auth/2fa/verify", { challengeToken, code: "000000" });
-ok(r.status === 400, "wrong 2FA code rejected");
-r = await req("POST", "/api/auth/2fa/verify", { challengeToken, backupCode });
-ok(r.status === 200 && Boolean(r.data?.token), "2FA login accepted with backup code");
-token = r.data?.token;
-ok(Boolean((await req("GET", "/api/auth/me")).data?.email === twofaEmail), "2FA token works for protected routes");
-// Backup codes are one-time.
-r = await req("POST", "/api/auth/login", { email: twofaEmail, password });
-const challenge2 = r.data?.challengeToken;
-r = await req("POST", "/api/auth/2fa/verify", { challengeToken: challenge2, backupCode });
-ok(r.status === 400, "used backup code cannot be reused");
-r = await req("POST", "/api/auth/2fa/verify", { challengeToken: challenge2, code: await generateTotp({ secret: totpSecret }) });
-ok(r.status === 200 && Boolean(r.data?.token), "2FA login accepted with fresh TOTP code");
-token = "";
-r = await req("POST", "/api/auth/login", { email: twofaEmail, password });
-const challenge3 = r.data?.challengeToken;
-r = await req("POST", "/api/auth/2fa/verify", { challengeToken: challenge3, code: await generateTotp({ secret: totpSecret }) });
-token = r.data?.token;
-r = await req("POST", "/api/auth/2fa/disable", { password: "wrong", code: await generateTotp({ secret: totpSecret }) });
-ok(r.status === 400, "disable 2FA rejects wrong password");
-r = await req("POST", "/api/auth/2fa/disable", { password, code: await generateTotp({ secret: totpSecret }) });
-ok(r.status === 200 && r.data?.user?.twoFactor?.enabled === false, "POST /api/auth/2fa/disable", JSON.stringify(r.data?.user?.twoFactor));
-token = "";
-r = await req("POST", "/api/auth/login", { email: twofaEmail, password });
-ok(r.status === 200 && Boolean(r.data?.token) && !r.data?.twoFactorRequired, "login is normal again after disabling 2FA");
+ok((await req("GET", "/api/auth/me")).data?.email === secondEmail, "direct token works for protected routes");
+r = await req("POST", "/api/auth/2fa/verify", { challengeToken: "bad", code: "000000" });
+ok(r.status === 404, "retired 2FA verify endpoint is gone");
 token = mainToken;
 
 // ---------- v2.1: admin controls, feature requests, contact management ----------
@@ -386,20 +352,18 @@ if (adminEmail && adminPassword) {
   ok(r.status === 201, "approved user can add data again");
 
   // Sub-feature switches also gate their write endpoints without deleting data.
-  r = await req("PUT", "/api/admin/settings", { features: { receipts: false, twoFactor: false } }, ah);
-  ok(r.status === 200 && r.data?.features?.receipts === false && r.data?.features?.twoFactor === false,
-    "admin can switch receipt photos and 2FA off");
-  r = await req("POST", "/api/auth/2fa/setup");
-  ok(r.status === 403, "disabled 2FA blocks setup");
+  r = await req("PUT", "/api/admin/settings", { features: { receipts: false } }, ah);
+  ok(r.status === 200 && r.data?.features?.receipts === false && !("twoFactor" in (r.data?.features || {})),
+    "admin can switch receipt photos off without a 2FA switch");
   const receiptForm = new FormData();
   receiptForm.append("receipt", new Blob(["fake image"], { type: "image/png" }), "receipt.png");
   const blockedReceipt = await fetch(BASE + "/api/uploads/receipt", {
     method: "POST", headers: { Authorization: `Bearer ${token}` }, body: receiptForm,
   });
   ok(blockedReceipt.status === 403, "disabled receipt photos block uploads");
-  r = await req("PUT", "/api/admin/settings", { features: { receipts: true, twoFactor: true } }, ah);
-  ok(r.status === 200 && r.data?.features?.receipts === true && r.data?.features?.twoFactor === true,
-    "admin can switch receipt photos and 2FA back on");
+  r = await req("PUT", "/api/admin/settings", { features: { receipts: true } }, ah);
+  ok(r.status === 200 && r.data?.features?.receipts === true,
+    "admin can switch receipt photos back on");
 
   r = await req("GET", "/api/admin/donations", undefined, ah);
   const donationRow = r.data?.rows?.find((x) => x.id === donationId);
@@ -452,13 +416,15 @@ try {
   const FeatureOverride = (await import("../src/models/FeatureOverride.js")).default;
   const ContactMessage = (await import("../src/models/ContactMessage.js")).default;
   const Announcement = (await import("../src/models/Announcement.js")).default;
-  const users = await User.find({ email: { $in: [email, twofaEmail] } });
+  const users = await User.find({ email: { $in: [email, secondEmail] } });
   const ids = users.map((u) => u._id);
   if (ids.length) {
     await Expense.deleteMany({ userId: { $in: ids } });
     await Budget.deleteMany({ userId: { $in: ids } });
     await Loan.deleteMany({ userId: { $in: ids } });
     await Donation.deleteMany({ userId: { $in: ids } });
+    // Earlier interrupted runs can leave approved pledges orphaned; clear the test marker too.
+    await Donation.deleteMany({ note: "Test pledge" });
     await PushSubscription.deleteMany({ userId: { $in: ids } });
     await NotificationLog.deleteMany({ userId: { $in: ids } });
     await FeatureRequest.deleteMany({ userId: { $in: ids } });

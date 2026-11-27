@@ -54,9 +54,7 @@
 .dark .ex-pace{border-color:#2a2f55}
 .dark .ex-toast{background:#6d5dfc}
 
-/* v2.0 dark mode: security, push and app settings */
+/* v2.0 dark mode: push and app settings */
 .dark .ex-badge{background:#1f2447;color:#a99dff}
 .dark .ex-badge.ok{background:#14532d;color:#86efac}
-.dark .ex-2fa-setup img{background:#fff}
-.dark .ex-2fa-setup code,.dark .ex-backup-grid code{background:#252a4d;color:#d9d5ff}
 .dark .ex-notify-status{border-color:#262b50}

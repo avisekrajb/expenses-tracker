@@ -7,7 +7,7 @@ import { admin } from "../services/site";
 const FEATURE_LABELS = {
   expenses: "Expenses", budgets: "Budgets", loans: "Give & Take", reports: "Reports",
   receipts: "Receipt photos", tags: "Tags & search", splitBills: "Split bills",
-  recurring: "Recurring", donations: "Donations", twoFactor: "Two-step verification",
+  recurring: "Recurring", donations: "Donations",
   notifications: "Device notifications", install: "Installable app",
 };
 const DONATION_FIELDS = [

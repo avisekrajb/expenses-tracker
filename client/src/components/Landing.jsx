@@ -73,7 +73,7 @@ export default function Landing({ go }) {
             <h2>Three steps. Zero fuss.</h2>
           </div>
           <ol className="pub-steps">
-            <li><b>1</b><div><h3>Create your account</h3><p>Email, password and you’re in. Add two-step verification whenever you want.</p></div></li>
+            <li><b>1</b><div><h3>Create your account</h3><p>Email, password and you’re in — no extra code to type.</p></div></li>
             <li><b>2</b><div><h3>Log what you spend</h3><p>Pick a category, type the amount, add a receipt. Takes five seconds.</p></div></li>
             <li><b>3</b><div><h3>See the full picture</h3><p>Budgets, charts, friend balances and reminders keep you on track.</p></div></li>
           </ol>

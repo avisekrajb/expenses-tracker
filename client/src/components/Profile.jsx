@@ -9,7 +9,6 @@ import { fmt, r2, todayStr } from "../utils/helpers";
 import { sumMoney } from "../utils/money";
 import { CATS } from "../utils/categories";
 import { useSite } from "../context/SiteContext";
-import TwoFactorSettings from "./TwoFactorSettings";
 import NotificationSettings from "./NotificationSettings";
 import InstallButton from "./InstallButton";
 import FeatureGate from "./FeatureGate";
@@ -141,13 +140,6 @@ export default function Profile({ items, goLoans }) {
           <div className="ex-profile-row"><small>Member since</small><span>{since}</span></div>
           <div className="ex-profile-row"><small>Account ID</small><span>{String(user?.id || "").slice(0, 8)}</span></div>
         </div>
-      </div>
-
-      <div className="ex-profile-sec">
-        <h3>Security</h3>
-        <FeatureGate feature="twoFactor" label="Two-step verification">
-          <TwoFactorSettings />
-        </FeatureGate>
       </div>
 
       <div className="ex-profile-sec">

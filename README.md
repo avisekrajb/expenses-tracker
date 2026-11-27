@@ -6,7 +6,7 @@ search/filters, CSV export, tags, recurring expenses, bill splitting, JSON backu
 bar / line / pie charts (daily to 10-year reports, month navigation, dark mode, profile photo).
 
 **v2.0** adds a responsive public marketing website with full SEO, an installable PWA,
-donation details (eSewa + bank), TOTP two-step verification and real Web Push device
+donation details (eSewa + bank), admin controls and real Web Push device
 notifications. Visitors see the public site until they log in; the five-tab dashboard
 is unchanged and still uses hash routing (`#/home`, `#/expenses`, `#/budget`, `#/loans`,
 `#/total`, with Profile in the avatar menu).
@@ -53,8 +53,7 @@ is unchanged and still uses hash routing (`#/home`, `#/expenses`, `#/budget`, `#
 22. **SEO** – per-route titles, descriptions, keywords, canonical URLs, Open Graph / Twitter cards, JSON-LD structured data, `robots.txt`, `sitemap.xml`, a static social cover and a PWA manifest. The dashboard is `noindex`.
 23. **Installable app** – full PWA manifest (192/512 icons, maskable icons, shortcuts), service worker with offline app shell, and an “Install app” button that uses the native `beforeinstallprompt` flow.
 24. **Donations** – a public Donate page with copy-to-clipboard eSewa ID/account name and bank details (bank, account, branch, SWIFT/IFSC), plus optional QR and a signed-in pledge tracker. Details come from environment variables; placeholders are clearly flagged until replaced.
-25. **Two-step verification** – TOTP authenticator-app setup (QR + manual key), backup codes, a short-lived login challenge, code/backup-code verification and password-protected disable.
-26. **Device notifications** – real Web Push with VAPID keys, subscription stored per device, a Test button, and a secured daily cron that sends deduplicated alerts for budget limits, overdue friend loans and recurring expenses due.
+25. **Device notifications** – real Web Push with VAPID keys, subscription stored per device, a Test button, and a secured daily cron that sends deduplicated alerts for budget limits, overdue friend loans and recurring expenses due.
 
 > No SEO tool can guarantee a #1 ranking. This site implements the technical and content
 > groundwork (crawlability, metadata, structured data, fast static assets); search engines
@@ -108,11 +107,7 @@ Docker alternative: `docker compose up`.
 | Method | Path | Purpose |
 |---|---|---|
 | POST | `/api/auth/signup` | Create account |
-| POST | `/api/auth/login` | Log in; returns JWT, or a `twoFactorRequired` challenge when 2FA is on |
-| POST | `/api/auth/2fa/verify` | Complete login with `{ challengeToken, code }` or `{ challengeToken, backupCode }` |
-| POST | `/api/auth/2fa/setup` | Start TOTP setup (secret, otpauth URI, QR data URL) |
-| POST | `/api/auth/2fa/enable` | Confirm a 6-digit code; returns 8 backup codes |
-| POST | `/api/auth/2fa/disable` | Turn off 2FA with `{ password, code }` |
+| POST | `/api/auth/login` | Log in; returns JWT and goes straight to the dashboard |
 | GET | `/api/auth/me` | Current user |
 | GET | `/api/expenses` | List expenses |
 | POST | `/api/expenses` | Create expense (`tags`, `recurring`, `receipt`, `receiptPublicId` optional) |

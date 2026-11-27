@@ -1,5 +1,5 @@
 /* Kharcha service worker: offline app shell + Web Push notifications. */
-const CACHE = "kharcha-v4";
+const CACHE = "kharcha-v5";
 const SHELL = ["/", "/index.html", "/manifest.json", "/favicon.ico", "/icons/icon-192.png", "/icons/icon-512.png"];
 
 self.addEventListener("install", (event) => {

@@ -27,11 +27,5 @@ export const login = async (email, password) => {
   }
 };
 
-export const verify2FA = async (challengeToken, code, backup = false) => {
-  const { data } = await api.post("/auth/2fa/verify", { challengeToken, [backup ? "backupCode" : "code"]: code });
-  setToken(data.token);
-  return data;
-};
-
 export const logout = () => clearToken();
 export const me = () => api.get("/auth/me").then((r) => r.data);

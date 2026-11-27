@@ -9,7 +9,6 @@ export const FEATURES = {
   splitBills: "Split bills",
   recurring: "Recurring expenses",
   donations: "Donations",
-  twoFactor: "Two-step verification",
   notifications: "Device notifications",
   install: "Installable app",
 };

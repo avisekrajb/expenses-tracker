@@ -47,7 +47,11 @@ export async function getSettings() {
         .map((l) => ({ label: clean(l.label, 60), url: clean(l.url, 500) })),
     },
     donations,
-    features: { ...DEFAULT_FEATURES, ...(doc.features || {}) },
+    // Ignore stale keys saved before a feature was retired.
+    features: Object.fromEntries(FEATURE_KEYS.map((key) => [
+      key,
+      typeof doc.features?.[key] === "boolean" ? doc.features[key] : DEFAULT_FEATURES[key],
+    ])),
   };
 }
 

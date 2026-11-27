@@ -38,7 +38,6 @@ const FEATURE_LIST = [
   "Split bills",
   "Recurring expenses",
   "Reports with bar, line and pie charts",
-  "Two-step verification and backup codes",
   "Web push notifications",
   "Installable PWA for Android and iOS",
   "JSON and CSV data export",
@@ -59,7 +58,7 @@ export const PAGES = {
   },
   "/services": {
     title: "Expense Tracker Features | Budgets, Receipts, Loans & Reports | Kharcha",
-    description: "Explore Kharcha features: monthly budgets, receipt photos, tags, split bills, recurring expenses, give/take loans, reports, JSON export, 2FA and push notifications.",
+    description: "Explore Kharcha features: monthly budgets, receipt photos, tags, split bills, recurring expenses, give/take loans, reports, JSON export and push notifications.",
     keywords: "budget app features, split bill Nepal, recurring expense tracker, friend loan tracker, receipt photo app, expense report charts, offline budget app, push notification expense tracker, installable PWA Nepal",
     schema: "FAQPage",
   },

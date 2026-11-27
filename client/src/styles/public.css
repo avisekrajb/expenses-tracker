@@ -147,8 +147,8 @@
 .pub-form,.pub-contact-info{display:flex;flex-direction:column;gap:16px;background:#fff;border-radius:26px;padding:28px;box-shadow:0 8px 26px #1b1f3b0a}
 .pub-root.dark .pub-form,.pub-root.dark .pub-contact-info{background:#171b36}
 .pub-form label{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:700}
-.pub-form input,.pub-form textarea,.ex-2fa input{width:100%;border:2px solid #eef0f6;background:#f7f8fd;border-radius:14px;padding:13px;font:inherit;font-size:14px;outline:none;color:#1b1f3b}
-.pub-form input:focus,.pub-form textarea:focus,.ex-2fa input:focus{border-color:#6d5dfc}
+.pub-form input,.pub-form textarea{width:100%;border:2px solid #eef0f6;background:#f7f8fd;border-radius:14px;padding:13px;font:inherit;font-size:14px;outline:none;color:#1b1f3b}
+.pub-form input:focus,.pub-form textarea:focus{border-color:#6d5dfc}
 .pub-form textarea{resize:vertical}
 .pub-contact-info article{padding-bottom:16px;border-bottom:1px solid #eef0f6}
 .pub-contact-info h3{margin:0 0 6px;font-size:15px}
@@ -218,17 +218,10 @@
 /* Dashboard additions */
 .ex-badge{font-size:11px;font-weight:800;background:#f2f3fb;color:#7a7f9e;border-radius:20px;padding:5px 10px}
 .ex-badge.ok{background:#dcfce7;color:#15803d}
-.ex-2fa,.ex-notify,.ex-app-card{display:flex;flex-direction:column;gap:9px}
-.ex-2fa-setup{display:flex;flex-direction:column;gap:9px;align-items:center}
-.ex-2fa-setup img{width:190px;height:190px;border-radius:16px;background:#fff;padding:8px}
-.ex-2fa-setup code,.ex-backup-grid code{background:#f2f3fb;border-radius:8px;padding:5px 9px;font-size:12px;word-break:break-all}
-.ex-2fa-off{display:flex;flex-direction:column;gap:8px;margin-top:6px}
-.ex-backups{display:flex;flex-direction:column;gap:8px}
-.ex-backup-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.ex-notify,.ex-app-card{display:flex;flex-direction:column;gap:9px}
 .ex-notify-status{display:flex;justify-content:space-between;font-size:12px;padding:8px 0;border-bottom:1px solid #f1f2f9}
 .ex-notify-actions{display:flex;flex-direction:column;gap:6px;margin-top:6px}
 .ex-app-card .ex-btn{margin-top:0}
-.dark .ex-2fa input{background:#1f2447;color:#eceefc;border-color:#2b3260}
 
 /* Feature lock: data stays mounted underneath, just blurred and non-clickable. */
 .feature-lock{position:relative;display:block;border-radius:16px}

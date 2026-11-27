@@ -2,14 +2,12 @@ import React, { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { load, save } from "../utils/helpers";
 
-// Sign up first, then log in. Accounts with 2FA ask for a second code.
+// Sign up first, then log in. Login always goes straight to the dashboard.
 export default function Login({ initialMode, onModeChange }) {
-  const { login, signup, challenge, verify2FA, cancel2FA } = useAuth();
+  const { login, signup } = useAuth();
   const [mode, setMode] = useState(() => initialMode || (load("ex_acct", false) ? "login" : "signup"));
   const [f, setF] = useState({ name: "", email: "", pw: "", pw2: "" });
-  const [code, setCode] = useState("");
   const [showPw, setShowPw] = useState(false);
-  const [backup, setBackup] = useState(false);
   const [err, setErr] = useState("");
   const [ok, setOk] = useState("");
   const [busy, setBusy] = useState(false);
@@ -47,33 +45,6 @@ export default function Login({ initialMode, onModeChange }) {
     }
     setBusy(false);
   };
-
-  const verify = async () => {
-    setBusy(true); setErr("");
-    try { await verify2FA(code.trim(), backup); }
-    catch (e) { setErr(e.message); }
-    setBusy(false);
-  };
-
-  if (challenge) {
-    return (
-      <div className="ex-login">
-        <div className="ex-logo">🔐</div>
-        <h1>Two-step check</h1>
-        <p>Enter the 6-digit code for {challenge.email}</p>
-        <form className="ex-card ex-form" onSubmit={(e) => { e.preventDefault(); verify(); }}>
-          <input inputMode={backup ? "text" : "numeric"} placeholder={backup ? "Backup code" : "6-digit authenticator code"}
-            value={code} onChange={(e) => { setCode(e.target.value); setErr(""); }} autoFocus />
-          {err && <div className="ex-err">{err}</div>}
-          <button className="ex-btn" type="submit" disabled={busy}>{busy ? "Checking…" : "Verify & continue"}</button>
-          <button type="button" className="ex-link" onClick={() => { setBackup((v) => !v); setCode(""); setErr(""); }}>
-            {backup ? "Use my authenticator code" : "Lost your phone? Use a backup code"}
-          </button>
-          <button type="button" className="ex-link" onClick={() => { setCode(""); cancel2FA(); }}>Back to login</button>
-        </form>
-      </div>
-    );
-  }
 
   return (
     <div className="ex-login">
